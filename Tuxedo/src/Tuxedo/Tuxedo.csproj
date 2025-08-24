@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net6.0;net8.0;net9.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <PackageId>Tuxedo</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Tuxedo Team</Authors>
+    <Company>Tuxedo</Company>
+    <Description>Tuxedo: Dapper + Contrib merged and modernized for .NET 6+, with adapters for SQL Server, PostgreSQL, and MySQL.</Description>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <RepositoryUrl>https://github.com/your-org/tuxedo</RepositoryUrl>
+  </PropertyGroup>
+</Project>

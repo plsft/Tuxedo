@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>Tuxedo</id>
+    <version>0.1.0</version>
+    <authors>Tuxedo Team</authors>
+    <description>Tuxedo: Dapper + Contrib merged and modernized for .NET 6+, with adapters for SQL Server, PostgreSQL, and MySQL.</description>
+    <repository type="git" url="https://github.com/your-org/tuxedo" />
+    <dependencies>
+      <group targetFramework="net6.0" />
+      <group targetFramework="net8.0" />
+      <group targetFramework="net9.0" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\bin\Debug\net6.0\Tuxedo.dll" target="lib\net6.0\Tuxedo.dll" />
+    <file src="C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\bin\Debug\net8.0\Tuxedo.dll" target="lib\net8.0\Tuxedo.dll" />
+    <file src="C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\bin\Debug\net9.0\Tuxedo.dll" target="lib\net9.0\Tuxedo.dll" />
+  </files>
+</package>
