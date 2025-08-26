@@ -7,9 +7,10 @@ Tuxedo is a modernized .NET data access library that merges Dapper and Dapper.Co
 - **High Performance**: Built on Dapper's proven performance characteristics
 - **Multi-Database Support**: Native adapters for SQL Server, PostgreSQL, and MySQL
 - **Modern .NET**: Optimized for .NET 6, .NET 8, and .NET 9
-- **CRUD Operations**: Simple Insert, Update, Delete, and Get operations from Dapper.Contrib
+- **SQL-Aligned CRUD Operations**: Native Insert, Update, Delete, and Select methods matching SQL verbs
 - **Query Support**: Full Dapper query capabilities with async support
 - **Type Safety**: Strongly-typed mapping with nullable reference type support
+- **Dual API**: Supports both legacy Dapper methods (Query, Get) and SQL-aligned methods (Select)
 
 ## Installation
 
@@ -111,8 +112,10 @@ var customer = new Customer
 };
 connection.Insert(customer);
 
-// Get by ID
-var retrievedProduct = connection.Get<Product>(id);
+// Select by ID (SQL-aligned syntax)
+var retrievedProduct = connection.Select<Product>(id);
+// Or use legacy syntax
+var sameProduct = connection.Get<Product>(id);
 
 // Update
 product.Price = 1199.99m;
@@ -121,20 +124,28 @@ connection.Update(product);
 // Delete
 connection.Delete(product);
 
-// Get All
-var allProducts = connection.GetAll<Product>();
+// Select All (SQL-aligned syntax)
+var allProducts = connection.SelectAll<Product>();
+// Or use legacy syntax
+var sameProducts = connection.GetAll<Product>();
 ```
 
 ### Query Examples
 
 ```csharp
-// Simple query
-var electronics = connection.Query<Product>(
+// Simple query with SQL-aligned Select method
+var electronics = connection.Select<Product>(
     "SELECT * FROM Products WHERE Category = @category",
     new { category = "Electronics" }
 );
 
-// Query with joins
+// Or use legacy Query syntax
+var sameElectronics = connection.Query<Product>(
+    "SELECT * FROM Products WHERE Category = @category",
+    new { category = "Electronics" }
+);
+
+// Query with joins using Select
 var orderDetails = connection.Query<Order, Customer, Order>(
     @"SELECT o.*, c.* 
       FROM Orders o 
@@ -174,14 +185,23 @@ var results = connection.Query<Product>(
 // Async insert
 var newId = await connection.InsertAsync(product);
 
-// Async query
-var products = await connection.QueryAsync<Product>(
+// Async select (SQL-aligned syntax)
+var products = await connection.SelectAsync<Product>(
     "SELECT * FROM Products WHERE Price > @minPrice",
     new { minPrice = 100 }
 );
 
+// Async select by ID
+var product = await connection.SelectAsync<Product>(productId);
+
+// Async select all
+var allProducts = await connection.SelectAllAsync<Product>();
+
 // Async update
 await connection.UpdateAsync(product);
+
+// Async delete
+await connection.DeleteAsync(product);
 
 // Async with transaction
 using var transaction = connection.BeginTransaction();
@@ -461,6 +481,21 @@ await foreach (var product in connection.QueryUnbufferedAsync<Product>("SELECT *
 5. **Connection Pooling**: Rely on built-in connection pooling
 6. **Batch Operations**: Use bulk operations for large data sets
 
+## SQL-Aligned API
+
+Tuxedo provides SQL verb-aligned methods that complement the traditional Dapper API:
+
+| SQL Verb | Tuxedo Method | Legacy Method | Description |
+|----------|---------------|---------------|-------------|
+| SELECT | `Select<T>()` | `Query<T>()` | Execute a SELECT query |
+| SELECT | `Select<T>(id)` | `Get<T>(id)` | Select by primary key |
+| SELECT | `SelectAll<T>()` | `GetAll<T>()` | Select all records |
+| INSERT | `Insert<T>()` | - | Insert a record |
+| UPDATE | `Update<T>()` | - | Update a record |
+| DELETE | `Delete<T>()` | - | Delete a record |
+
+All methods have async variants (`SelectAsync`, `InsertAsync`, etc.). The SQL-aligned methods are aliases that provide a more intuitive, SQL-like API while maintaining full backward compatibility with existing Dapper code.
+
 ## Migration from Dapper/Dapper.Contrib
 
 Tuxedo is designed to be a drop-in replacement. Simply:
@@ -468,6 +503,7 @@ Tuxedo is designed to be a drop-in replacement. Simply:
 1. Replace `using Dapper;` with `using Tuxedo;`
 2. Replace `using Dapper.Contrib.Extensions;` with `using Tuxedo.Contrib;`
 3. Update package references from `Dapper` and `Dapper.Contrib` to `Tuxedo`
+4. Optionally, adopt the SQL-aligned methods (`Select`, `Insert`, `Update`, `Delete`) for new code
 
 ## Contributing
 

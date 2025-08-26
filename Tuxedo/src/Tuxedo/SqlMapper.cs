@@ -845,6 +845,26 @@ namespace Tuxedo
         }
 
         /// <summary>
+        /// Executes a query, returning the data typed as <typeparamref name="T"/>.
+        /// This is an alias for Query<T> method.
+        /// </summary>
+        /// <typeparam name="T">The type of results to return.</typeparam>
+        /// <param name="cnn">The connection to query on.</param>
+        /// <param name="sql">The SQL to execute for the query.</param>
+        /// <param name="param">The parameters to pass, if any.</param>
+        /// <param name="transaction">The transaction to use, if any.</param>
+        /// <param name="buffered">Whether to buffer results in memory.</param>
+        /// <param name="commandTimeout">The command timeout (in seconds).</param>
+        /// <param name="commandType">The type of command to execute.</param>
+        /// <returns>
+        /// A sequence of data of the supplied type; if a basic type (int, string, etc) is queried then the data from the first column is assumed, otherwise an instance is
+        /// created per row, and a direct column-name===member-name mapping is assumed (case insensitive).
+        /// </returns>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
+        public static IEnumerable<T> Select<T>(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, bool buffered = true, int? commandTimeout = null, CommandType? commandType = null)
+            => Query<T>(cnn, sql, param, transaction, buffered, commandTimeout, commandType);
+
+        /// <summary>
         /// Executes a single-row query, returning the data typed as <typeparamref name="T"/>.
         /// </summary>
         /// <typeparam name="T">The type of result to return.</typeparam>
@@ -864,6 +884,25 @@ namespace Tuxedo
             var command = new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None);
             return QueryRowImpl<T>(cnn, Row.First, ref command, typeof(T));
         }
+
+        /// <summary>
+        /// Executes a single-row query, returning the data typed as <typeparamref name="T"/>.
+        /// This is an alias for QueryFirst<T> method.
+        /// </summary>
+        /// <typeparam name="T">The type of result to return.</typeparam>
+        /// <param name="cnn">The connection to query on.</param>
+        /// <param name="sql">The SQL to execute for the query.</param>
+        /// <param name="param">The parameters to pass, if any.</param>
+        /// <param name="transaction">The transaction to use, if any.</param>
+        /// <param name="commandTimeout">The command timeout (in seconds).</param>
+        /// <param name="commandType">The type of command to execute.</param>
+        /// <returns>
+        /// A sequence of data of the supplied type; if a basic type (int, string, etc) is queried then the data from the first column is assumed, otherwise an instance is
+        /// created per row, and a direct column-name===member-name mapping is assumed (case insensitive).
+        /// </returns>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
+        public static T SelectFirst<T>(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, int? commandTimeout = null, CommandType? commandType = null)
+            => QueryFirst<T>(cnn, sql, param, transaction, commandTimeout, commandType);
 
         /// <summary>
         /// Executes a single-row query, returning the data typed as <typeparamref name="T"/>.
@@ -888,6 +927,25 @@ namespace Tuxedo
 
         /// <summary>
         /// Executes a single-row query, returning the data typed as <typeparamref name="T"/>.
+        /// This is an alias for QueryFirstOrDefault<T> method.
+        /// </summary>
+        /// <typeparam name="T">The type of result to return.</typeparam>
+        /// <param name="cnn">The connection to query on.</param>
+        /// <param name="sql">The SQL to execute for the query.</param>
+        /// <param name="param">The parameters to pass, if any.</param>
+        /// <param name="transaction">The transaction to use, if any.</param>
+        /// <param name="commandTimeout">The command timeout (in seconds).</param>
+        /// <param name="commandType">The type of command to execute.</param>
+        /// <returns>
+        /// A sequence of data of the supplied type; if a basic type (int, string, etc) is queried then the data from the first column is assumed, otherwise an instance is
+        /// created per row, and a direct column-name===member-name mapping is assumed (case insensitive).
+        /// </returns>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
+        public static T? SelectFirstOrDefault<T>(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, int? commandTimeout = null, CommandType? commandType = null)
+            => QueryFirstOrDefault<T>(cnn, sql, param, transaction, commandTimeout, commandType);
+
+        /// <summary>
+        /// Executes a single-row query, returning the data typed as <typeparamref name="T"/>.
         /// </summary>
         /// <typeparam name="T">The type of result to return.</typeparam>
         /// <param name="cnn">The connection to query on.</param>
@@ -909,6 +967,25 @@ namespace Tuxedo
 
         /// <summary>
         /// Executes a single-row query, returning the data typed as <typeparamref name="T"/>.
+        /// This is an alias for QuerySingle<T> method.
+        /// </summary>
+        /// <typeparam name="T">The type of result to return.</typeparam>
+        /// <param name="cnn">The connection to query on.</param>
+        /// <param name="sql">The SQL to execute for the query.</param>
+        /// <param name="param">The parameters to pass, if any.</param>
+        /// <param name="transaction">The transaction to use, if any.</param>
+        /// <param name="commandTimeout">The command timeout (in seconds).</param>
+        /// <param name="commandType">The type of command to execute.</param>
+        /// <returns>
+        /// A sequence of data of the supplied type; if a basic type (int, string, etc) is queried then the data from the first column is assumed, otherwise an instance is
+        /// created per row, and a direct column-name===member-name mapping is assumed (case insensitive).
+        /// </returns>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
+        public static T SelectSingle<T>(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, int? commandTimeout = null, CommandType? commandType = null)
+            => QuerySingle<T>(cnn, sql, param, transaction, commandTimeout, commandType);
+
+        /// <summary>
+        /// Executes a single-row query, returning the data typed as <typeparamref name="T"/>.
         /// </summary>
         /// <typeparam name="T">The type of result to return.</typeparam>
         /// <param name="cnn">The connection to query on.</param>
@@ -927,6 +1004,25 @@ namespace Tuxedo
             var command = new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None);
             return QueryRowImpl<T>(cnn, Row.SingleOrDefault, ref command, typeof(T));
         }
+
+        /// <summary>
+        /// Executes a single-row query, returning the data typed as <typeparamref name="T"/>.
+        /// This is an alias for QuerySingleOrDefault<T> method.
+        /// </summary>
+        /// <typeparam name="T">The type of result to return.</typeparam>
+        /// <param name="cnn">The connection to query on.</param>
+        /// <param name="sql">The SQL to execute for the query.</param>
+        /// <param name="param">The parameters to pass, if any.</param>
+        /// <param name="transaction">The transaction to use, if any.</param>
+        /// <param name="commandTimeout">The command timeout (in seconds).</param>
+        /// <param name="commandType">The type of command to execute.</param>
+        /// <returns>
+        /// A sequence of data of the supplied type; if a basic type (int, string, etc) is queried then the data from the first column is assumed, otherwise an instance is
+        /// created per row, and a direct column-name===member-name mapping is assumed (case insensitive).
+        /// </returns>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
+        public static T? SelectSingleOrDefault<T>(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, int? commandTimeout = null, CommandType? commandType = null)
+            => QuerySingleOrDefault<T>(cnn, sql, param, transaction, commandTimeout, commandType);
 
         /// <summary>
         /// Executes a single-row query, returning the data typed as <paramref name="type"/>.
@@ -1060,6 +1156,20 @@ namespace Tuxedo
             var data = QueryImpl<T>(cnn, command, typeof(T));
             return command.Buffered ? data.ToList() : data;
         }
+
+        /// <summary>
+        /// Executes a query, returning the data typed as <typeparamref name="T"/>.
+        /// This is an alias for Query<T> method.
+        /// </summary>
+        /// <typeparam name="T">The type of results to return.</typeparam>
+        /// <param name="cnn">The connection to query on.</param>
+        /// <param name="command">The command used to query on this connection.</param>
+        /// <returns>
+        /// A sequence of data of <typeparamref name="T"/>; if a basic type (int, string, etc) is queried then the data from the first column is assumed, otherwise an instance is
+        /// created per row, and a direct column-name===member-name mapping is assumed (case insensitive).
+        /// </returns>
+        public static IEnumerable<T> Select<T>(this IDbConnection cnn, CommandDefinition command)
+            => Query<T>(cnn, command);
 
         /// <summary>
         /// Executes a query, returning the data typed as <typeparamref name="T"/>.
@@ -4075,6 +4185,66 @@ namespace Tuxedo
             perThreadStringBuilderCache ??= obj;
             return s;
         }
+
+        #region Select Method Aliases
+
+        /// <summary>
+        /// Perform a multi-mapping query with 2 input types. 
+        /// This is an alias for Query method.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
+        public static IEnumerable<TReturn> Select<TFirst, TSecond, TReturn>(this IDbConnection cnn, string sql, Func<TFirst, TSecond, TReturn> map, object? param = null, IDbTransaction? transaction = null, bool buffered = true, string splitOn = "Id", int? commandTimeout = null, CommandType? commandType = null) =>
+            Query<TFirst, TSecond, TReturn>(cnn, sql, map, param, transaction, buffered, splitOn, commandTimeout, commandType);
+
+        /// <summary>
+        /// Perform a multi-mapping query with 3 input types. 
+        /// This is an alias for Query method.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
+        public static IEnumerable<TReturn> Select<TFirst, TSecond, TThird, TReturn>(this IDbConnection cnn, string sql, Func<TFirst, TSecond, TThird, TReturn> map, object? param = null, IDbTransaction? transaction = null, bool buffered = true, string splitOn = "Id", int? commandTimeout = null, CommandType? commandType = null) =>
+            Query<TFirst, TSecond, TThird, TReturn>(cnn, sql, map, param, transaction, buffered, splitOn, commandTimeout, commandType);
+
+        /// <summary>
+        /// Perform a multi-mapping query with 4 input types. 
+        /// This is an alias for Query method.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
+        public static IEnumerable<TReturn> Select<TFirst, TSecond, TThird, TFourth, TReturn>(this IDbConnection cnn, string sql, Func<TFirst, TSecond, TThird, TFourth, TReturn> map, object? param = null, IDbTransaction? transaction = null, bool buffered = true, string splitOn = "Id", int? commandTimeout = null, CommandType? commandType = null) =>
+            Query<TFirst, TSecond, TThird, TFourth, TReturn>(cnn, sql, map, param, transaction, buffered, splitOn, commandTimeout, commandType);
+
+        /// <summary>
+        /// Perform a multi-mapping query with 5 input types. 
+        /// This is an alias for Query method.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
+        public static IEnumerable<TReturn> Select<TFirst, TSecond, TThird, TFourth, TFifth, TReturn>(this IDbConnection cnn, string sql, Func<TFirst, TSecond, TThird, TFourth, TFifth, TReturn> map, object? param = null, IDbTransaction? transaction = null, bool buffered = true, string splitOn = "Id", int? commandTimeout = null, CommandType? commandType = null) =>
+            Query<TFirst, TSecond, TThird, TFourth, TFifth, TReturn>(cnn, sql, map, param, transaction, buffered, splitOn, commandTimeout, commandType);
+
+        /// <summary>
+        /// Perform a multi-mapping query with 6 input types. 
+        /// This is an alias for Query method.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
+        public static IEnumerable<TReturn> Select<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TReturn>(this IDbConnection cnn, string sql, Func<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TReturn> map, object? param = null, IDbTransaction? transaction = null, bool buffered = true, string splitOn = "Id", int? commandTimeout = null, CommandType? commandType = null) =>
+            Query<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TReturn>(cnn, sql, map, param, transaction, buffered, splitOn, commandTimeout, commandType);
+
+        /// <summary>
+        /// Perform a multi-mapping query with 7 input types. 
+        /// This is an alias for Query method.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
+        public static IEnumerable<TReturn> Select<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh, TReturn>(this IDbConnection cnn, string sql, Func<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh, TReturn> map, object? param = null, IDbTransaction? transaction = null, bool buffered = true, string splitOn = "Id", int? commandTimeout = null, CommandType? commandType = null) =>
+            Query<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh, TReturn>(cnn, sql, map, param, transaction, buffered, splitOn, commandTimeout, commandType);
+
+        /// <summary>
+        /// Perform a multi-mapping query with arbitrary input types. 
+        /// This is an alias for Query method.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
+        public static IEnumerable<TReturn> Select<TReturn>(this IDbConnection cnn, string sql, Type[] types, Func<object[], TReturn> map, object? param = null, IDbTransaction? transaction = null, bool buffered = true, string splitOn = "Id", int? commandTimeout = null, CommandType? commandType = null) =>
+            Query<TReturn>(cnn, sql, types, map, param, transaction, buffered, splitOn, commandTimeout, commandType);
+
+        #endregion
     }
 }
 

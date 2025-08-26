@@ -1348,6 +1348,171 @@ namespace Tuxedo
                 }
             }
         }
+
+        #region SelectAsync Method Aliases
+
+        /// <summary>
+        /// Execute a query asynchronously using Task.
+        /// This is an alias for QueryAsync<T> method.
+        /// </summary>
+        public static Task<IEnumerable<T>> SelectAsync<T>(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, int? commandTimeout = null, CommandType? commandType = null) =>
+            QueryAsync<T>(cnn, sql, param, transaction, commandTimeout, commandType);
+
+        /// <summary>
+        /// Execute a query asynchronously using Task.
+        /// This is an alias for QueryAsync<T> method.
+        /// </summary>
+        public static Task<IEnumerable<T>> SelectAsync<T>(this IDbConnection cnn, CommandDefinition command) =>
+            QueryAsync<T>(cnn, command);
+
+        /// <summary>
+        /// Execute a single-row query asynchronously using Task.
+        /// This is an alias for QueryFirstAsync<T> method.
+        /// </summary>
+        public static Task<T> SelectFirstAsync<T>(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, int? commandTimeout = null, CommandType? commandType = null) =>
+            QueryFirstAsync<T>(cnn, sql, param, transaction, commandTimeout, commandType);
+
+        /// <summary>
+        /// Execute a single-row query asynchronously using Task.
+        /// This is an alias for QueryFirstAsync<T> method.
+        /// </summary>
+        public static Task<T> SelectFirstAsync<T>(this IDbConnection cnn, CommandDefinition command) =>
+            QueryFirstAsync<T>(cnn, command);
+
+        /// <summary>
+        /// Execute a single-row query asynchronously using Task.
+        /// This is an alias for QueryFirstOrDefaultAsync<T> method.
+        /// </summary>
+        public static Task<T?> SelectFirstOrDefaultAsync<T>(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, int? commandTimeout = null, CommandType? commandType = null) =>
+            QueryFirstOrDefaultAsync<T>(cnn, sql, param, transaction, commandTimeout, commandType);
+
+        /// <summary>
+        /// Execute a single-row query asynchronously using Task.
+        /// This is an alias for QueryFirstOrDefaultAsync<T> method.
+        /// </summary>
+        public static Task<T?> SelectFirstOrDefaultAsync<T>(this IDbConnection cnn, CommandDefinition command) =>
+            QueryFirstOrDefaultAsync<T>(cnn, command);
+
+        /// <summary>
+        /// Execute a single-row query asynchronously using Task.
+        /// This is an alias for QuerySingleAsync<T> method.
+        /// </summary>
+        public static Task<T> SelectSingleAsync<T>(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, int? commandTimeout = null, CommandType? commandType = null) =>
+            QuerySingleAsync<T>(cnn, sql, param, transaction, commandTimeout, commandType);
+
+        /// <summary>
+        /// Execute a single-row query asynchronously using Task.
+        /// This is an alias for QuerySingleAsync<T> method.
+        /// </summary>
+        public static Task<T> SelectSingleAsync<T>(this IDbConnection cnn, CommandDefinition command) =>
+            QuerySingleAsync<T>(cnn, command);
+
+        /// <summary>
+        /// Execute a single-row query asynchronously using Task.
+        /// This is an alias for QuerySingleOrDefaultAsync<T> method.
+        /// </summary>
+        public static Task<T?> SelectSingleOrDefaultAsync<T>(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, int? commandTimeout = null, CommandType? commandType = null) =>
+            QuerySingleOrDefaultAsync<T>(cnn, sql, param, transaction, commandTimeout, commandType);
+
+        /// <summary>
+        /// Execute a single-row query asynchronously using Task.
+        /// This is an alias for QuerySingleOrDefaultAsync<T> method.
+        /// </summary>
+        public static Task<T?> SelectSingleOrDefaultAsync<T>(this IDbConnection cnn, CommandDefinition command) =>
+            QuerySingleOrDefaultAsync<T>(cnn, command);
+
+        /// <summary>
+        /// Perform a multi-mapping query with 2 input types asynchronously.
+        /// This is an alias for QueryAsync method.
+        /// </summary>
+        public static Task<IEnumerable<TReturn>> SelectAsync<TFirst, TSecond, TReturn>(this IDbConnection cnn, string sql, Func<TFirst, TSecond, TReturn> map, object? param = null, IDbTransaction? transaction = null, bool buffered = true, string splitOn = "Id", int? commandTimeout = null, CommandType? commandType = null) =>
+            QueryAsync<TFirst, TSecond, TReturn>(cnn, sql, map, param, transaction, buffered, splitOn, commandTimeout, commandType);
+
+        /// <summary>
+        /// Perform a multi-mapping query with 2 input types asynchronously.
+        /// This is an alias for QueryAsync method.
+        /// </summary>
+        public static Task<IEnumerable<TReturn>> SelectAsync<TFirst, TSecond, TReturn>(this IDbConnection cnn, CommandDefinition command, Func<TFirst, TSecond, TReturn> map, string splitOn = "Id") =>
+            QueryAsync<TFirst, TSecond, TReturn>(cnn, command, map, splitOn);
+
+        /// <summary>
+        /// Perform a multi-mapping query with 3 input types asynchronously.
+        /// This is an alias for QueryAsync method.
+        /// </summary>
+        public static Task<IEnumerable<TReturn>> SelectAsync<TFirst, TSecond, TThird, TReturn>(this IDbConnection cnn, string sql, Func<TFirst, TSecond, TThird, TReturn> map, object? param = null, IDbTransaction? transaction = null, bool buffered = true, string splitOn = "Id", int? commandTimeout = null, CommandType? commandType = null) =>
+            QueryAsync<TFirst, TSecond, TThird, TReturn>(cnn, sql, map, param, transaction, buffered, splitOn, commandTimeout, commandType);
+
+        /// <summary>
+        /// Perform a multi-mapping query with 3 input types asynchronously.
+        /// This is an alias for QueryAsync method.
+        /// </summary>
+        public static Task<IEnumerable<TReturn>> SelectAsync<TFirst, TSecond, TThird, TReturn>(this IDbConnection cnn, CommandDefinition command, Func<TFirst, TSecond, TThird, TReturn> map, string splitOn = "Id") =>
+            QueryAsync<TFirst, TSecond, TThird, TReturn>(cnn, command, map, splitOn);
+
+        /// <summary>
+        /// Perform a multi-mapping query with 4 input types asynchronously.
+        /// This is an alias for QueryAsync method.
+        /// </summary>
+        public static Task<IEnumerable<TReturn>> SelectAsync<TFirst, TSecond, TThird, TFourth, TReturn>(this IDbConnection cnn, string sql, Func<TFirst, TSecond, TThird, TFourth, TReturn> map, object? param = null, IDbTransaction? transaction = null, bool buffered = true, string splitOn = "Id", int? commandTimeout = null, CommandType? commandType = null) =>
+            QueryAsync<TFirst, TSecond, TThird, TFourth, TReturn>(cnn, sql, map, param, transaction, buffered, splitOn, commandTimeout, commandType);
+
+        /// <summary>
+        /// Perform a multi-mapping query with 4 input types asynchronously.
+        /// This is an alias for QueryAsync method.
+        /// </summary>
+        public static Task<IEnumerable<TReturn>> SelectAsync<TFirst, TSecond, TThird, TFourth, TReturn>(this IDbConnection cnn, CommandDefinition command, Func<TFirst, TSecond, TThird, TFourth, TReturn> map, string splitOn = "Id") =>
+            QueryAsync<TFirst, TSecond, TThird, TFourth, TReturn>(cnn, command, map, splitOn);
+
+        /// <summary>
+        /// Perform a multi-mapping query with 5 input types asynchronously.
+        /// This is an alias for QueryAsync method.
+        /// </summary>
+        public static Task<IEnumerable<TReturn>> SelectAsync<TFirst, TSecond, TThird, TFourth, TFifth, TReturn>(this IDbConnection cnn, string sql, Func<TFirst, TSecond, TThird, TFourth, TFifth, TReturn> map, object? param = null, IDbTransaction? transaction = null, bool buffered = true, string splitOn = "Id", int? commandTimeout = null, CommandType? commandType = null) =>
+            QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TReturn>(cnn, sql, map, param, transaction, buffered, splitOn, commandTimeout, commandType);
+
+        /// <summary>
+        /// Perform a multi-mapping query with 5 input types asynchronously.
+        /// This is an alias for QueryAsync method.
+        /// </summary>
+        public static Task<IEnumerable<TReturn>> SelectAsync<TFirst, TSecond, TThird, TFourth, TFifth, TReturn>(this IDbConnection cnn, CommandDefinition command, Func<TFirst, TSecond, TThird, TFourth, TFifth, TReturn> map, string splitOn = "Id") =>
+            QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TReturn>(cnn, command, map, splitOn);
+
+        /// <summary>
+        /// Perform a multi-mapping query with 6 input types asynchronously.
+        /// This is an alias for QueryAsync method.
+        /// </summary>
+        public static Task<IEnumerable<TReturn>> SelectAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TReturn>(this IDbConnection cnn, string sql, Func<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TReturn> map, object? param = null, IDbTransaction? transaction = null, bool buffered = true, string splitOn = "Id", int? commandTimeout = null, CommandType? commandType = null) =>
+            QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TReturn>(cnn, sql, map, param, transaction, buffered, splitOn, commandTimeout, commandType);
+
+        /// <summary>
+        /// Perform a multi-mapping query with 6 input types asynchronously.
+        /// This is an alias for QueryAsync method.
+        /// </summary>
+        public static Task<IEnumerable<TReturn>> SelectAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TReturn>(this IDbConnection cnn, CommandDefinition command, Func<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TReturn> map, string splitOn = "Id") =>
+            QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TReturn>(cnn, command, map, splitOn);
+
+        /// <summary>
+        /// Perform a multi-mapping query with 7 input types asynchronously.
+        /// This is an alias for QueryAsync method.
+        /// </summary>
+        public static Task<IEnumerable<TReturn>> SelectAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh, TReturn>(this IDbConnection cnn, string sql, Func<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh, TReturn> map, object? param = null, IDbTransaction? transaction = null, bool buffered = true, string splitOn = "Id", int? commandTimeout = null, CommandType? commandType = null) =>
+            QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh, TReturn>(cnn, sql, map, param, transaction, buffered, splitOn, commandTimeout, commandType);
+
+        /// <summary>
+        /// Perform a multi-mapping query with 7 input types asynchronously.
+        /// This is an alias for QueryAsync method.
+        /// </summary>
+        public static Task<IEnumerable<TReturn>> SelectAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh, TReturn>(this IDbConnection cnn, CommandDefinition command, Func<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh, TReturn> map, string splitOn = "Id") =>
+            QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh, TReturn>(cnn, command, map, splitOn);
+
+        /// <summary>
+        /// Perform a multi-mapping query with arbitrary input types asynchronously.
+        /// This is an alias for QueryAsync method.
+        /// </summary>
+        public static Task<IEnumerable<TReturn>> SelectAsync<TReturn>(this IDbConnection cnn, string sql, Type[] types, Func<object[], TReturn> map, object? param = null, IDbTransaction? transaction = null, bool buffered = true, string splitOn = "Id", int? commandTimeout = null, CommandType? commandType = null) =>
+            QueryAsync<TReturn>(cnn, sql, types, map, param, transaction, buffered, splitOn, commandTimeout, commandType);
+
+        #endregion
     }
 }
 

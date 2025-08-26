@@ -698,6 +698,37 @@ namespace Tuxedo.Contrib
                 typeBuilder.DefineMethodOverride(currSetPropMthdBldr, setMethod);
             }
         }
+
+        #region Select Method Aliases
+
+        /// <summary>
+        /// Returns a single entity by a single id from table "Ts".
+        /// This is an alias for Get<T> method.
+        /// Id must be marked with [Key] attribute.
+        /// </summary>
+        /// <typeparam name="T">Interface or type to create and populate</typeparam>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="id">Id of the entity to get, must be marked with [Key] attribute</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <returns>Entity of T</returns>
+        public static T Select<T>(this IDbConnection connection, dynamic id, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+            => Get<T>(connection, id, transaction, commandTimeout);
+
+        /// <summary>
+        /// Returns a list of entities from table "Ts".
+        /// This is an alias for GetAll<T> method.
+        /// Id of T must be marked with [Key] attribute.
+        /// </summary>
+        /// <typeparam name="T">Interface or type to create and populate</typeparam>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <returns>Entity of T</returns>
+        public static IEnumerable<T> SelectAll<T>(this IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+            => GetAll<T>(connection, transaction, commandTimeout);
+
+        #endregion
     }
 
     /// <summary>

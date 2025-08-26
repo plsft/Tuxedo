@@ -340,6 +340,37 @@ namespace Tuxedo.Contrib
             var deleted = await connection.ExecuteAsync(statement, null, transaction, commandTimeout).ConfigureAwait(false);
             return deleted > 0;
         }
+
+        #region SelectAsync Method Aliases
+
+        /// <summary>
+        /// Returns a single entity by a single id from table "Ts" asynchronously using Task.
+        /// This is an alias for GetAsync<T> method.
+        /// Id must be marked with [Key] attribute.
+        /// </summary>
+        /// <typeparam name="T">Interface or type to create and populate</typeparam>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="id">Id of the entity to get, must be marked with [Key] attribute</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <returns>Entity of T</returns>
+        public static Task<T> SelectAsync<T>(this IDbConnection connection, dynamic id, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+            => GetAsync<T>(connection, id, transaction, commandTimeout);
+
+        /// <summary>
+        /// Returns a list of entities from table "Ts" asynchronously using Task.
+        /// This is an alias for GetAllAsync<T> method.
+        /// Id of T must be marked with [Key] attribute.
+        /// </summary>
+        /// <typeparam name="T">Interface or type to create and populate</typeparam>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <returns>Entity of T</returns>
+        public static Task<IEnumerable<T>> SelectAllAsync<T>(this IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+            => GetAllAsync<T>(connection, transaction, commandTimeout);
+
+        #endregion
     }
 }
 
