@@ -20,3 +20,5 @@ C:\work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\obj\Release\net9.0\Tuxedo.dll
 C:\work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\obj\Release\net9.0\refint\Tuxedo.dll
 C:\work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\obj\Release\net9.0\Tuxedo.pdb
 C:\work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\obj\Release\net9.0\ref\Tuxedo.dll
+C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\obj\Release\net9.0\Tuxedo.csproj.AssemblyReference.cache
+C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\obj\Release\net9.0\Tuxedo.sourcelink.json

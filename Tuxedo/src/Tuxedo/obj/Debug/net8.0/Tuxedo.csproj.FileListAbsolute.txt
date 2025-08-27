@@ -1,10 +1,12 @@
-C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\bin\Debug\net8.0\Tuxedo.deps.json
-C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\bin\Debug\net8.0\Tuxedo.dll
-C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\bin\Debug\net8.0\Tuxedo.pdb
+C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\obj\Debug\net8.0\Tuxedo.csproj.AssemblyReference.cache
 C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\obj\Debug\net8.0\Tuxedo.GeneratedMSBuildEditorConfig.editorconfig
 C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\obj\Debug\net8.0\Tuxedo.AssemblyInfoInputs.cache
 C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\obj\Debug\net8.0\Tuxedo.AssemblyInfo.cs
 C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\obj\Debug\net8.0\Tuxedo.csproj.CoreCompileInputs.cache
+C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\obj\Debug\net8.0\Tuxedo.sourcelink.json
+C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\bin\Debug\net8.0\Tuxedo.deps.json
+C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\bin\Debug\net8.0\Tuxedo.dll
+C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\bin\Debug\net8.0\Tuxedo.pdb
 C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\obj\Debug\net8.0\Tuxedo.dll
 C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\obj\Debug\net8.0\refint\Tuxedo.dll
 C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\obj\Debug\net8.0\Tuxedo.pdb
