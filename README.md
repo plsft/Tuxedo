@@ -14,18 +14,20 @@ Tuxedo is a modernized .NET data access library that merges Dapper and Dapper.Co
 - **Dual API**: Supports both legacy Dapper methods (Query, Get) and SQL-aligned methods (Select)
 - **Dependency Injection**: Built-in IServiceCollection extensions for modern DI patterns
 
-### Enterprise Features (New!)
-- **Connection Resiliency**: Automatic retry policies with exponential backoff for transient errors
-- **Query Caching**: High-performance in-memory caching with tag-based invalidation
-- **Distributed Tracing**: OpenTelemetry integration for monitoring and observability
+### Enterprise Features
 - **Fluent Query Builder**: Type-safe, chainable API for building complex queries
 - **Bulk Operations**: Efficient batch insert, update, delete, and merge operations
 - **Repository Pattern**: Generic repository implementation with async support
 - **Unit of Work Pattern**: Transaction management across multiple repositories
 - **Specification Pattern**: Express complex queries as reusable business rules
-- **Logging & Diagnostics**: Comprehensive event-based monitoring and performance tracking
 - **Health Checks**: Built-in health check support for monitoring database connectivity
 - **Advanced Pagination**: Comprehensive pagination support with multiple implementation patterns
+
+### Planned Features (Coming Soon)
+- **Connection Resiliency**: Automatic retry policies with exponential backoff for transient errors
+- **Query Caching**: High-performance in-memory caching with tag-based invalidation
+- **Distributed Tracing**: OpenTelemetry integration for monitoring and observability
+- **Logging & Diagnostics**: Comprehensive event-based monitoring and performance tracking
 
 ## Installation
 
@@ -83,9 +85,9 @@ public class Product
 {
     [Key]
     public int Id { get; set; }
-    public string Name { get; set; }
+    public string Name { get; set; } = string.Empty;
     public decimal Price { get; set; }
-    public string Category { get; set; }
+    public string? Category { get; set; }
     [Computed]
     public DateTime LastModified { get; set; }
 }
@@ -966,7 +968,8 @@ services.AddTuxedoSqlServer("Server=localhost;Database=MyDb;...");
 services.AddTuxedoSqlServer(
     connectionString,
     configureConnection: conn => {
-        conn.AccessToken = GetAzureToken();
+        // Configure connection if needed
+        // conn.AccessToken = await GetAzureTokenAsync();
     },
     openOnResolve: true,
     commandTimeoutSeconds: 60);
@@ -1067,8 +1070,8 @@ else
     builder.Services.AddTuxedoSqlServer(
         builder.Configuration.GetConnectionString("Production"),
         configureConnection: conn => {
-            // Configure Azure AD authentication
-            conn.AccessToken = GetAzureAdToken();
+            // Configure Azure AD authentication if needed
+            // conn.AccessToken = await GetAzureAdTokenAsync();
         },
         commandTimeoutSeconds: 60);
 }
@@ -1110,12 +1113,25 @@ public class ProductController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetProducts([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
-        var products = await _connection.QueryPagedAsync<Product>(
-            "SELECT * FROM Products ORDER BY Id",
-            page,
-            pageSize);
+        // Calculate offset
+        var offset = (page - 1) * pageSize;
         
-        return Ok(products);
+        // Get products with pagination
+        var products = await _connection.QueryAsync<Product>(
+            "SELECT * FROM Products ORDER BY Id OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY",
+            new { offset, pageSize });
+        
+        // Get total count
+        var totalCount = await _connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM Products");
+        
+        return Ok(new 
+        { 
+            data = products,
+            page,
+            pageSize,
+            totalCount,
+            totalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+        });
     }
 
     [HttpGet("{id}")]
@@ -1244,22 +1260,57 @@ static async Task RunApplication(IServiceProvider services)
         switch (choice)
         {
             case "1":
-                await ListProducts(repository);
+                var products = await repository.GetAllAsync();
+                foreach (var p in products)
+                {
+                    Console.WriteLine($"{p.Id}: {p.Name} - ${p.Price:F2}");
+                }
                 break;
             case "2":
-                await AddProduct(repository);
+                Console.Write("Product name: ");
+                var name = Console.ReadLine() ?? "";
+                Console.Write("Price: ");
+                if (decimal.TryParse(Console.ReadLine(), out var price))
+                {
+                    var id = await repository.CreateAsync(new Product { Name = name, Price = price });
+                    Console.WriteLine($"Created product with ID: {id}");
+                }
                 break;
             case "3":
-                await UpdateProduct(repository);
+                Console.Write("Product ID to update: ");
+                if (int.TryParse(Console.ReadLine(), out var updateId))
+                {
+                    var product = await repository.GetByIdAsync(updateId);
+                    if (product != null)
+                    {
+                        Console.Write($"New name ({product.Name}): ");
+                        var newName = Console.ReadLine();
+                        if (!string.IsNullOrEmpty(newName)) product.Name = newName;
+                        
+                        Console.Write($"New price ({product.Price}): ");
+                        if (decimal.TryParse(Console.ReadLine(), out var newPrice))
+                            product.Price = newPrice;
+                        
+                        await repository.UpdateAsync(product);
+                        Console.WriteLine("Product updated");
+                    }
+                }
                 break;
             case "4":
-                await DeleteProduct(repository);
+                Console.Write("Product ID to delete: ");
+                if (int.TryParse(Console.ReadLine(), out var deleteId))
+                {
+                    if (await repository.DeleteAsync(deleteId))
+                        Console.WriteLine("Product deleted");
+                    else
+                        Console.WriteLine("Product not found");
+                }
                 break;
             case "5":
-                await BulkImport(connection);
+                Console.WriteLine("Bulk import from CSV not implemented in this example");
                 break;
             case "6":
-                await ExportToCsv(connection);
+                Console.WriteLine("Export to CSV not implemented in this example");
                 break;
             case "0":
                 return;
@@ -1603,90 +1654,7 @@ await bulkOps.BulkMergeAsync(connection, products);
 
 ## Enterprise Features
 
-### Connection Resiliency
-
-Automatically retry database operations on transient failures:
-
-```csharp
-using Tuxedo.Resiliency;
-
-// Add resiliency with configuration
-services.AddTuxedoResiliency(options =>
-{
-    options.MaxRetryAttempts = 3;
-    options.BaseDelay = TimeSpan.FromSeconds(1);
-    options.EnableCircuitBreaker = true;
-    options.CircuitBreakerThreshold = 5;
-});
-
-// Use resilient connections
-public class ResilientService
-{
-    private readonly Func<IDbConnection, IDbConnection> _wrapConnection;
-    
-    public ResilientService(Func<IDbConnection, IDbConnection> wrapConnection)
-    {
-        _wrapConnection = wrapConnection;
-    }
-    
-    public async Task<Product> GetProductWithRetryAsync(int id)
-    {
-        using var connection = new SqlConnection(connectionString);
-        using var resilientConnection = _wrapConnection(connection);
-        
-        // This will automatically retry on transient failures
-        return await resilientConnection.SelectAsync<Product>(id);
-    }
-}
-```
-
-### Query Caching
-
-Cache query results to improve performance:
-
-```csharp
-using Tuxedo.Caching;
-
-// Add caching support
-services.AddTuxedoCaching(options =>
-{
-    options.DefaultCacheDuration = TimeSpan.FromMinutes(5);
-    options.MaxCacheSize = 1000;
-});
-
-// Use cached queries
-public class CachedProductService
-{
-    private readonly IDbConnection _connection;
-    private readonly IQueryCache _cache;
-    
-    public CachedProductService(IDbConnection connection, IQueryCache cache)
-    {
-        _connection = connection;
-        _cache = cache;
-    }
-    
-    public async Task<IEnumerable<Product>> GetProductsByCategoryAsync(string category)
-    {
-        var cacheKey = $"products_category_{category}";
-        
-        return await _cache.GetOrAddAsync(
-            cacheKey,
-            async () => await _connection.SelectAsync<Product>(
-                "SELECT * FROM Products WHERE Category = @category",
-                new { category }
-            ),
-            TimeSpan.FromMinutes(10),
-            tags: new[] { "products", $"category:{category}" }
-        );
-    }
-    
-    public async Task InvalidateCategoryCache(string category)
-    {
-        await _cache.InvalidateByTagAsync($"category:{category}");
-    }
-}
-```
+The following enterprise features are currently implemented and available:
 
 ### Fluent Query Builder
 
@@ -1931,46 +1899,6 @@ public class SpecificationService
 }
 ```
 
-### Logging and Diagnostics
-
-Monitor and debug database operations:
-
-```csharp
-using Tuxedo.Diagnostics;
-
-// Register diagnostics
-services.AddSingleton<ITuxedoDiagnostics, TuxedoDiagnostics>();
-
-// Use diagnostics
-public class DiagnosticsExample
-{
-    private readonly ITuxedoDiagnostics _diagnostics;
-    
-    public DiagnosticsExample(ITuxedoDiagnostics diagnostics)
-    {
-        _diagnostics = diagnostics;
-        
-        // Subscribe to events
-        _diagnostics.QueryExecuted += OnQueryExecuted;
-        _diagnostics.ErrorOccurred += OnError;
-    }
-    
-    private void OnQueryExecuted(object sender, QueryExecutedEventArgs e)
-    {
-        if (e.Duration.TotalSeconds > 1)
-        {
-            Console.WriteLine($"Slow query detected: {e.Query}");
-            Console.WriteLine($"Duration: {e.Duration.TotalMilliseconds}ms");
-        }
-    }
-    
-    private void OnError(object sender, ErrorEventArgs e)
-    {
-        Console.WriteLine($"Database error: {e.Exception.Message}");
-        Console.WriteLine($"Query: {e.Query}");
-    }
-}
-```
 
 ## Advanced Features
 
@@ -2013,11 +1941,6 @@ foreach (var product in largeResultSet)
     ProcessProduct(product);
 }
 
-// Async enumeration (.NET Core 3.0+)
-await foreach (var product in connection.QueryUnbufferedAsync<Product>("SELECT * FROM Products"))
-{
-    await ProcessProductAsync(product);
-}
 ```
 
 ## Best Practices
@@ -2028,12 +1951,10 @@ await foreach (var product in connection.QueryUnbufferedAsync<Product>("SELECT *
 4. **Transaction Scope**: Use transactions for related operations
 5. **Connection Pooling**: Rely on built-in connection pooling
 6. **Batch Operations**: Use bulk operations for large data sets
-7. **Caching Strategy**: Cache frequently accessed, rarely changing data
-8. **Retry Policies**: Configure appropriate retry policies for production
-9. **Health Checks**: Implement health checks for monitoring
-10. **Specifications**: Use specifications for complex, reusable query logic
-11. **Pagination**: Always paginate large result sets with appropriate page sizes
-12. **Indexing**: Ensure proper indexes for pagination ORDER BY and WHERE clauses
+7. **Health Checks**: Implement health checks for monitoring
+8. **Specifications**: Use specifications for complex, reusable query logic
+9. **Pagination**: Always paginate large result sets with appropriate page sizes
+10. **Indexing**: Ensure proper indexes for pagination ORDER BY and WHERE clauses
 
 ## SQL-Aligned API
 
@@ -2058,7 +1979,7 @@ Tuxedo is designed to be a drop-in replacement. Simply:
 2. Replace `using Dapper.Contrib.Extensions;` with `using Tuxedo.Contrib;`
 3. Update package references from `Dapper` and `Dapper.Contrib` to `Tuxedo`
 4. Optionally, adopt the SQL-aligned methods (`Select`, `Insert`, `Update`, `Delete`) for new code
-5. Leverage enterprise features (resiliency, caching, pagination, etc.) as needed
+5. Leverage enterprise features (pagination, bulk operations, repository pattern, etc.) as available
 
 ## Contributing
 
