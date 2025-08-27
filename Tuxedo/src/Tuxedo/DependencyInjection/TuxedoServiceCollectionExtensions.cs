@@ -2,11 +2,43 @@ using System;
 using System.Data;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 
 namespace Tuxedo.DependencyInjection
 {
     public static class TuxedoServiceCollectionExtensions
     {
+        /// <summary>
+        /// Registers a scoped IDbConnection using provided options. Typical scope is one per web request.
+        /// </summary>
+        public static IServiceCollection AddTuxedo(
+            this IServiceCollection services,
+            Action<TuxedoOptions> configure)
+        {
+            services.Configure(configure);
+
+            services.TryAddScoped<IDbConnection>(sp =>
+            {
+                var opts = sp.GetRequiredService<IOptions<TuxedoOptions>>().Value;
+                var conn = opts.ConnectionFactory(sp);
+                if (opts.OpenOnResolve && conn.State != ConnectionState.Open)
+                    conn.Open();
+                return conn;
+            });
+
+            // Expose options downstream as needed
+            services.TryAddScoped<ITuxedoConnectionFactory>(sp => 
+                new TuxedoConnectionFactory(() => sp.GetRequiredService<IDbConnection>()));
+
+            // Register health check
+            services.AddHealthChecks()
+                .AddTypeActivatedCheck<TuxedoHealthCheck>("tuxedo_db");
+
+            return services;
+        }
+
+        // Legacy overloads for backwards compatibility
         public static IServiceCollection AddTuxedo(
             this IServiceCollection services,
             Func<IServiceProvider, IDbConnection> connectionFactory,
@@ -18,15 +50,48 @@ namespace Tuxedo.DependencyInjection
             if (connectionFactory == null)
                 throw new ArgumentNullException(nameof(connectionFactory));
 
-            services.TryAdd(new ServiceDescriptor(
-                typeof(IDbConnection),
-                connectionFactory,
-                lifetime));
+            services.Configure<TuxedoOptions>(opts =>
+            {
+                opts.ConnectionFactory = connectionFactory;
+                opts.OpenOnResolve = false; // Legacy behavior
+            });
 
-            services.TryAdd(new ServiceDescriptor(
-                typeof(ITuxedoConnectionFactory),
-                provider => new TuxedoConnectionFactory(() => connectionFactory(provider)),
-                lifetime));
+            if (lifetime == ServiceLifetime.Scoped)
+            {
+                services.TryAddScoped<IDbConnection>(sp =>
+                {
+                    var opts = sp.GetRequiredService<IOptions<TuxedoOptions>>().Value;
+                    var conn = opts.ConnectionFactory(sp);
+                    if (opts.OpenOnResolve && conn.State != ConnectionState.Open)
+                        conn.Open();
+                    return conn;
+                });
+            }
+            else if (lifetime == ServiceLifetime.Transient)
+            {
+                services.TryAddTransient<IDbConnection>(sp =>
+                {
+                    var opts = sp.GetRequiredService<IOptions<TuxedoOptions>>().Value;
+                    var conn = opts.ConnectionFactory(sp);
+                    if (opts.OpenOnResolve && conn.State != ConnectionState.Open)
+                        conn.Open();
+                    return conn;
+                });
+            }
+            else
+            {
+                services.TryAddSingleton<IDbConnection>(sp =>
+                {
+                    var opts = sp.GetRequiredService<IOptions<TuxedoOptions>>().Value;
+                    var conn = opts.ConnectionFactory(sp);
+                    if (opts.OpenOnResolve && conn.State != ConnectionState.Open)
+                        conn.Open();
+                    return conn;
+                });
+            }
+
+            services.TryAddScoped<ITuxedoConnectionFactory>(sp =>
+                new TuxedoConnectionFactory(() => sp.GetRequiredService<IDbConnection>()));
 
             return services;
         }
@@ -63,19 +128,52 @@ namespace Tuxedo.DependencyInjection
             if (connectionFactory == null)
                 throw new ArgumentNullException(nameof(connectionFactory));
 
-            services.TryAdd(new ServiceDescriptor(
-                typeof(IDbConnection),
-                provider =>
+            services.Configure<TuxedoOptions>(opts =>
+            {
+                opts.ConnectionFactory = sp =>
                 {
-                    var options = provider.GetRequiredService<TOptions>();
-                    return connectionFactory(provider, options);
-                },
-                lifetime));
+                    var options = sp.GetRequiredService<TOptions>();
+                    return connectionFactory(sp, options);
+                };
+                opts.OpenOnResolve = false; // Legacy behavior
+            });
 
-            services.TryAdd(new ServiceDescriptor(
-                typeof(ITuxedoConnectionFactory),
-                provider => new TuxedoConnectionFactory(() => provider.GetRequiredService<IDbConnection>()),
-                lifetime));
+            if (lifetime == ServiceLifetime.Scoped)
+            {
+                services.TryAddScoped<IDbConnection>(sp =>
+                {
+                    var opts = sp.GetRequiredService<IOptions<TuxedoOptions>>().Value;
+                    var conn = opts.ConnectionFactory(sp);
+                    if (opts.OpenOnResolve && conn.State != ConnectionState.Open)
+                        conn.Open();
+                    return conn;
+                });
+            }
+            else if (lifetime == ServiceLifetime.Transient)
+            {
+                services.TryAddTransient<IDbConnection>(sp =>
+                {
+                    var opts = sp.GetRequiredService<IOptions<TuxedoOptions>>().Value;
+                    var conn = opts.ConnectionFactory(sp);
+                    if (opts.OpenOnResolve && conn.State != ConnectionState.Open)
+                        conn.Open();
+                    return conn;
+                });
+            }
+            else
+            {
+                services.TryAddSingleton<IDbConnection>(sp =>
+                {
+                    var opts = sp.GetRequiredService<IOptions<TuxedoOptions>>().Value;
+                    var conn = opts.ConnectionFactory(sp);
+                    if (opts.OpenOnResolve && conn.State != ConnectionState.Open)
+                        conn.Open();
+                    return conn;
+                });
+            }
+
+            services.TryAddScoped<ITuxedoConnectionFactory>(sp =>
+                new TuxedoConnectionFactory(() => sp.GetRequiredService<IDbConnection>()));
 
             return services;
         }

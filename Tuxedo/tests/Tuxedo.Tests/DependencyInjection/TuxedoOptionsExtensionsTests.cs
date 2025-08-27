@@ -225,7 +225,26 @@ namespace Tuxedo.Tests.DependencyInjection
         [Fact]
         public void TuxedoOptions_AllPropertiesCanBeSet()
         {
+            var testConnection = new TestDbConnection();
             var options = new TuxedoOptions
+            {
+                ConnectionFactory = _ => testConnection,
+                DefaultCommandTimeoutSeconds = 30,
+                OpenOnResolve = false,
+                Dialect = TuxedoDialect.SqlServer
+            };
+            
+            Assert.NotNull(options.ConnectionFactory);
+            Assert.Equal(30, options.DefaultCommandTimeoutSeconds);
+            Assert.False(options.OpenOnResolve);
+            Assert.Equal(TuxedoDialect.SqlServer, options.Dialect);
+            Assert.Same(testConnection, options.ConnectionFactory(null!));
+        }
+
+        [Fact]
+        public void TuxedoLegacyOptions_AllPropertiesCanBeSet()
+        {
+            var options = new TuxedoLegacyOptions
             {
                 ConnectionString = "TestConnection",
                 CommandTimeout = 30,
@@ -248,7 +267,7 @@ namespace Tuxedo.Tests.DependencyInjection
         }
 
         [Fact]
-        public void TuxedoSqlServerOptions_InheritsFromTuxedoOptions()
+        public void TuxedoSqlServerOptions_InheritsFromTuxedoLegacyOptions()
         {
             var options = new TuxedoSqlServerOptions
             {
@@ -265,7 +284,7 @@ namespace Tuxedo.Tests.DependencyInjection
         }
 
         [Fact]
-        public void TuxedoPostgresOptions_InheritsFromTuxedoOptions()
+        public void TuxedoPostgresOptions_InheritsFromTuxedoLegacyOptions()
         {
             var options = new TuxedoPostgresOptions
             {
@@ -284,7 +303,7 @@ namespace Tuxedo.Tests.DependencyInjection
         }
 
         [Fact]
-        public void TuxedoMySqlOptions_InheritsFromTuxedoOptions()
+        public void TuxedoMySqlOptions_InheritsFromTuxedoLegacyOptions()
         {
             var options = new TuxedoMySqlOptions
             {
@@ -300,6 +319,22 @@ namespace Tuxedo.Tests.DependencyInjection
             Assert.True(options.UseCompression);
             Assert.Equal(600u, options.ConnectionLifeTime);
             Assert.False(options.ConvertZeroDateTime);
+        }
+
+        private class TestDbConnection : IDbConnection
+        {
+            public string ConnectionString { get; set; } = "";
+            public int ConnectionTimeout => 30;
+            public string Database => "TestDb";
+            public ConnectionState State { get; set; }
+
+            public IDbTransaction BeginTransaction() => throw new NotImplementedException();
+            public IDbTransaction BeginTransaction(IsolationLevel il) => throw new NotImplementedException();
+            public void ChangeDatabase(string databaseName) => throw new NotImplementedException();
+            public void Close() => State = ConnectionState.Closed;
+            public IDbCommand CreateCommand() => throw new NotImplementedException();
+            public void Dispose() { }
+            public void Open() => State = ConnectionState.Open;
         }
     }
 }

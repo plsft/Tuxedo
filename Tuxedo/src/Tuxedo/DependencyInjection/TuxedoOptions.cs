@@ -3,7 +3,22 @@ using System.Data;
 
 namespace Tuxedo.DependencyInjection
 {
-    public class TuxedoOptions
+    public sealed class TuxedoOptions
+    {
+        /// <summary>Factory that creates the provider-specific connection (SqlConnection, NpgsqlConnection, MySqlConnection).</summary>
+        public Func<IServiceProvider, IDbConnection> ConnectionFactory { get; set; } = null!;
+
+        /// <summary>When true, opens the connection immediately within the scope (recommended for per-request reuse).</summary>
+        public bool OpenOnResolve { get; set; } = true;
+
+        /// <summary>Optional default command timeout (seconds) you can set on created commands.</summary>
+        public int? DefaultCommandTimeoutSeconds { get; set; }
+
+        /// <summary>Database dialect used by some helpers (e.g., paging).</summary>
+        public TuxedoDialect Dialect { get; set; } = TuxedoDialect.Postgres;
+    }
+
+    public class TuxedoLegacyOptions
     {
         public string? ConnectionString { get; set; }
         
@@ -23,7 +38,7 @@ namespace Tuxedo.DependencyInjection
         public bool ExponentialBackoff { get; set; } = true;
     }
 
-    public class TuxedoSqlServerOptions : TuxedoOptions
+    public class TuxedoSqlServerOptions : TuxedoLegacyOptions
     {
         public bool MultipleActiveResultSets { get; set; } = true;
         
@@ -32,7 +47,7 @@ namespace Tuxedo.DependencyInjection
         public int? ConnectTimeout { get; set; }
     }
 
-    public class TuxedoPostgresOptions : TuxedoOptions
+    public class TuxedoPostgresOptions : TuxedoLegacyOptions
     {
         public bool Pooling { get; set; } = true;
         
@@ -43,7 +58,7 @@ namespace Tuxedo.DependencyInjection
         public bool PrepareStatements { get; set; } = true;
     }
 
-    public class TuxedoMySqlOptions : TuxedoOptions
+    public class TuxedoMySqlOptions : TuxedoLegacyOptions
     {
         public bool AllowUserVariables { get; set; } = true;
         
