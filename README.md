@@ -11,6 +11,7 @@ Tuxedo is a modernized .NET data access library that merges Dapper and Dapper.Co
 - **Query Support**: Full Dapper query capabilities with async support
 - **Type Safety**: Strongly-typed mapping with nullable reference type support
 - **Dual API**: Supports both legacy Dapper methods (Query, Get) and SQL-aligned methods (Select)
+- **Dependency Injection**: Built-in IServiceCollection extensions for modern DI patterns
 
 ## Installation
 
@@ -401,6 +402,228 @@ connection.Execute("sp_GetCategoryStats", p, commandType: CommandType.StoredProc
 
 var avgPrice = p.Get<decimal>("@avg_price");
 var productCount = p.Get<int>("@product_count");
+```
+
+## Dependency Injection Support
+
+Tuxedo provides comprehensive dependency injection support through IServiceCollection extensions, following best practices for connection lifetime management.
+
+### Basic DI Setup
+
+```csharp
+using Tuxedo.DependencyInjection;
+
+// In your Program.cs or Startup.cs
+var builder = WebApplication.CreateBuilder(args);
+
+// Add Tuxedo with SQL Server
+builder.Services.AddTuxedoSqlServer(
+    builder.Configuration.GetConnectionString("SqlServer"));
+
+// Or with PostgreSQL
+builder.Services.AddTuxedoPostgres(
+    builder.Configuration.GetConnectionString("Postgres"));
+
+// Or with MySQL
+builder.Services.AddTuxedoMySql(
+    builder.Configuration.GetConnectionString("MySql"));
+
+var app = builder.Build();
+```
+
+### Using in Controllers/Services
+
+```csharp
+public class ProductService
+{
+    private readonly IDbConnection _connection;
+    
+    public ProductService(IDbConnection connection)
+    {
+        _connection = connection;
+    }
+    
+    public async Task<IEnumerable<Product>> GetProductsAsync()
+    {
+        return await _connection.SelectAllAsync<Product>();
+    }
+    
+    public async Task<Product> GetProductAsync(int id)
+    {
+        return await _connection.SelectAsync<Product>(id);
+    }
+    
+    public async Task<int> CreateProductAsync(Product product)
+    {
+        return await _connection.InsertAsync(product);
+    }
+}
+```
+
+### Advanced DI Configuration
+
+#### Custom Connection Factory
+
+```csharp
+// Register with custom factory
+builder.Services.AddTuxedo(provider =>
+{
+    var config = provider.GetRequiredService<IConfiguration>();
+    var logger = provider.GetRequiredService<ILogger<SqlConnection>>();
+    
+    var connection = new SqlConnection(config.GetConnectionString("Default"));
+    // Custom initialization logic
+    connection.InfoMessage += (sender, e) => logger.LogInformation(e.Message);
+    
+    return connection;
+}, ServiceLifetime.Scoped);
+```
+
+#### Configuration-Based Setup
+
+```csharp
+// appsettings.json
+{
+  "TuxedoSqlServer": {
+    "ConnectionString": "Server=localhost;Database=MyApp;...",
+    "CommandTimeout": 30,
+    "MultipleActiveResultSets": true,
+    "TrustServerCertificate": true
+  },
+  "TuxedoPostgres": {
+    "ConnectionString": "Host=localhost;Database=myapp;...",
+    "Pooling": true,
+    "MinPoolSize": 5,
+    "MaxPoolSize": 100
+  }
+}
+
+// Program.cs
+builder.Services.AddTuxedoSqlServerWithOptions(
+    builder.Configuration, 
+    "TuxedoSqlServer");
+
+builder.Services.AddTuxedoPostgresWithOptions(
+    builder.Configuration, 
+    "TuxedoPostgres");
+```
+
+#### Provider-Specific Configuration
+
+```csharp
+// SQL Server with configuration
+builder.Services.AddTuxedoSqlServer(
+    connectionString,
+    connection =>
+    {
+        // Configure connection properties
+        connection.FireInfoMessageEventOnUserErrors = true;
+        connection.StatisticsEnabled = true;
+    },
+    ServiceLifetime.Scoped);
+
+// PostgreSQL with configuration
+builder.Services.AddTuxedoPostgres(
+    connectionString,
+    connection =>
+    {
+        // Configure Npgsql-specific settings
+        connection.UserCertificateValidationCallback = ValidateCertificate;
+    },
+    ServiceLifetime.Scoped);
+
+// MySQL with configuration
+builder.Services.AddTuxedoMySql(
+    connectionString,
+    connection =>
+    {
+        // Configure MySQL-specific settings
+        connection.IgnorePrepare = false;
+    },
+    ServiceLifetime.Scoped);
+```
+
+#### Using with Options Pattern
+
+```csharp
+// Define your options
+public class DatabaseOptions
+{
+    public string ConnectionString { get; set; }
+    public int CommandTimeout { get; set; } = 30;
+    public bool EnableRetries { get; set; } = true;
+}
+
+// Configure options
+builder.Services.Configure<DatabaseOptions>(
+    builder.Configuration.GetSection("Database"));
+
+// Register with options
+builder.Services.AddTuxedoWithOptions<IOptions<DatabaseOptions>>(
+    (provider, options) =>
+    {
+        var dbOptions = options.Value;
+        var connection = new SqlConnection(dbOptions.ConnectionString);
+        // Apply configuration from options
+        return connection;
+    },
+    ServiceLifetime.Scoped);
+```
+
+### Connection Lifetime Best Practices
+
+By default, Tuxedo registers connections with **Scoped** lifetime, which is the recommended approach:
+
+- **Scoped (Default)**: One connection per request - ideal for web applications
+- **Transient**: New connection for each injection - useful for parallel operations
+- **Singleton**: Single connection for application lifetime - use with caution
+
+```csharp
+// Scoped - Recommended for web apps (default)
+builder.Services.AddTuxedoSqlServer(connectionString);
+
+// Transient - For parallel operations
+builder.Services.AddTuxedoSqlServer(connectionString, ServiceLifetime.Transient);
+
+// Singleton - Use carefully, ensure thread safety
+builder.Services.AddTuxedoSqlServer(connectionString, ServiceLifetime.Singleton);
+```
+
+### Using ITuxedoConnectionFactory
+
+For scenarios where you need to create connections on demand:
+
+```csharp
+public class BatchProcessor
+{
+    private readonly ITuxedoConnectionFactory _connectionFactory;
+    
+    public BatchProcessor(ITuxedoConnectionFactory connectionFactory)
+    {
+        _connectionFactory = connectionFactory;
+    }
+    
+    public async Task ProcessBatchAsync(List<Product> products)
+    {
+        // Create a new connection for batch operation
+        using var connection = _connectionFactory.CreateConnection();
+        using var transaction = connection.BeginTransaction();
+        
+        try
+        {
+            foreach (var product in products)
+            {
+                await connection.InsertAsync(product, transaction);
+            }
+            transaction.Commit();
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+}
 ```
 
 ## Advanced Features
