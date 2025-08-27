@@ -1,17 +1,30 @@
 # Tuxedo
 
-Tuxedo is a modernized .NET data access library that merges Dapper and Dapper.Contrib functionality into a single, unified package optimized for .NET 6+. It provides high-performance object mapping with built-in support for SQL Server, PostgreSQL, and MySQL.
+Tuxedo is a modernized .NET data access library that merges Dapper and Dapper.Contrib functionality into a single, unified package optimized for .NET 6+. It provides high-performance object mapping with built-in support for SQL Server, PostgreSQL, and MySQL, along with enterprise-grade features for resilience, caching, and advanced query patterns.
 
 ## Features
 
+### Core Features
 - **High Performance**: Built on Dapper's proven performance characteristics
-- **Multi-Database Support**: Native adapters for SQL Server, PostgreSQL, and MySQL
+- **Multi-Database Support**: Native adapters for SQL Server, PostgreSQL, and MySQL with dialect-aware SQL generation
 - **Modern .NET**: Optimized for .NET 6, .NET 8, and .NET 9
 - **SQL-Aligned CRUD Operations**: Native Insert, Update, Delete, and Select methods matching SQL verbs
 - **Query Support**: Full Dapper query capabilities with async support
 - **Type Safety**: Strongly-typed mapping with nullable reference type support
 - **Dual API**: Supports both legacy Dapper methods (Query, Get) and SQL-aligned methods (Select)
 - **Dependency Injection**: Built-in IServiceCollection extensions for modern DI patterns
+
+### Enterprise Features (New!)
+- **Connection Resiliency**: Automatic retry policies with exponential backoff for transient errors
+- **Query Caching**: High-performance in-memory caching with tag-based invalidation
+- **Distributed Tracing**: OpenTelemetry integration for monitoring and observability
+- **Fluent Query Builder**: Type-safe, chainable API for building complex queries
+- **Bulk Operations**: Efficient batch insert, update, delete, and merge operations
+- **Repository Pattern**: Generic repository implementation with async support
+- **Unit of Work Pattern**: Transaction management across multiple repositories
+- **Specification Pattern**: Express complex queries as reusable business rules
+- **Logging & Diagnostics**: Comprehensive event-based monitoring and performance tracking
+- **Health Checks**: Built-in health check support for monitoring database connectivity
 
 ## Installation
 
@@ -431,6 +444,24 @@ builder.Services.AddTuxedoMySql(
 var app = builder.Build();
 ```
 
+### Advanced DI with SQL Dialects and Health Checks
+
+```csharp
+// Register with dialect and health checks
+builder.Services.AddTuxedo(options =>
+{
+    options.ConnectionFactory = provider => 
+        new SqlConnection(connectionString);
+    options.Dialect = TuxedoDialect.SqlServer;
+    options.OpenOnResolve = true;
+    options.DefaultCommandTimeoutSeconds = 30;
+});
+
+// Add health checks
+builder.Services.AddHealthChecks()
+    .AddCheck<TuxedoHealthCheck>("database");
+```
+
 ### Using in Controllers/Services
 
 ```csharp
@@ -458,135 +489,6 @@ public class ProductService
         return await _connection.InsertAsync(product);
     }
 }
-```
-
-### Advanced DI Configuration
-
-#### Custom Connection Factory
-
-```csharp
-// Register with custom factory
-builder.Services.AddTuxedo(provider =>
-{
-    var config = provider.GetRequiredService<IConfiguration>();
-    var logger = provider.GetRequiredService<ILogger<SqlConnection>>();
-    
-    var connection = new SqlConnection(config.GetConnectionString("Default"));
-    // Custom initialization logic
-    connection.InfoMessage += (sender, e) => logger.LogInformation(e.Message);
-    
-    return connection;
-}, ServiceLifetime.Scoped);
-```
-
-#### Configuration-Based Setup
-
-```csharp
-// appsettings.json
-{
-  "TuxedoSqlServer": {
-    "ConnectionString": "Server=localhost;Database=MyApp;...",
-    "CommandTimeout": 30,
-    "MultipleActiveResultSets": true,
-    "TrustServerCertificate": true
-  },
-  "TuxedoPostgres": {
-    "ConnectionString": "Host=localhost;Database=myapp;...",
-    "Pooling": true,
-    "MinPoolSize": 5,
-    "MaxPoolSize": 100
-  }
-}
-
-// Program.cs
-builder.Services.AddTuxedoSqlServerWithOptions(
-    builder.Configuration, 
-    "TuxedoSqlServer");
-
-builder.Services.AddTuxedoPostgresWithOptions(
-    builder.Configuration, 
-    "TuxedoPostgres");
-```
-
-#### Provider-Specific Configuration
-
-```csharp
-// SQL Server with configuration
-builder.Services.AddTuxedoSqlServer(
-    connectionString,
-    connection =>
-    {
-        // Configure connection properties
-        connection.FireInfoMessageEventOnUserErrors = true;
-        connection.StatisticsEnabled = true;
-    },
-    ServiceLifetime.Scoped);
-
-// PostgreSQL with configuration
-builder.Services.AddTuxedoPostgres(
-    connectionString,
-    connection =>
-    {
-        // Configure Npgsql-specific settings
-        connection.UserCertificateValidationCallback = ValidateCertificate;
-    },
-    ServiceLifetime.Scoped);
-
-// MySQL with configuration
-builder.Services.AddTuxedoMySql(
-    connectionString,
-    connection =>
-    {
-        // Configure MySQL-specific settings
-        connection.IgnorePrepare = false;
-    },
-    ServiceLifetime.Scoped);
-```
-
-#### Using with Options Pattern
-
-```csharp
-// Define your options
-public class DatabaseOptions
-{
-    public string ConnectionString { get; set; }
-    public int CommandTimeout { get; set; } = 30;
-    public bool EnableRetries { get; set; } = true;
-}
-
-// Configure options
-builder.Services.Configure<DatabaseOptions>(
-    builder.Configuration.GetSection("Database"));
-
-// Register with options
-builder.Services.AddTuxedoWithOptions<IOptions<DatabaseOptions>>(
-    (provider, options) =>
-    {
-        var dbOptions = options.Value;
-        var connection = new SqlConnection(dbOptions.ConnectionString);
-        // Apply configuration from options
-        return connection;
-    },
-    ServiceLifetime.Scoped);
-```
-
-### Connection Lifetime Best Practices
-
-By default, Tuxedo registers connections with **Scoped** lifetime, which is the recommended approach:
-
-- **Scoped (Default)**: One connection per request - ideal for web applications
-- **Transient**: New connection for each injection - useful for parallel operations
-- **Singleton**: Single connection for application lifetime - use with caution
-
-```csharp
-// Scoped - Recommended for web apps (default)
-builder.Services.AddTuxedoSqlServer(connectionString);
-
-// Transient - For parallel operations
-builder.Services.AddTuxedoSqlServer(connectionString, ServiceLifetime.Transient);
-
-// Singleton - Use carefully, ensure thread safety
-builder.Services.AddTuxedoSqlServer(connectionString, ServiceLifetime.Singleton);
 ```
 
 ### Using ITuxedoConnectionFactory
@@ -626,6 +528,439 @@ public class BatchProcessor
 }
 ```
 
+## Enterprise Features
+
+### Connection Resiliency
+
+Automatically retry database operations on transient failures:
+
+```csharp
+using Tuxedo.Resiliency;
+
+// Add resiliency with configuration
+services.AddTuxedoResiliency(options =>
+{
+    options.MaxRetryAttempts = 3;
+    options.BaseDelay = TimeSpan.FromSeconds(1);
+    options.EnableCircuitBreaker = true;
+    options.CircuitBreakerThreshold = 5;
+});
+
+// Use resilient connections
+public class ResilientService
+{
+    private readonly Func<IDbConnection, IDbConnection> _wrapConnection;
+    
+    public ResilientService(Func<IDbConnection, IDbConnection> wrapConnection)
+    {
+        _wrapConnection = wrapConnection;
+    }
+    
+    public async Task<Product> GetProductWithRetryAsync(int id)
+    {
+        using var connection = new SqlConnection(connectionString);
+        using var resilientConnection = _wrapConnection(connection);
+        
+        // This will automatically retry on transient failures
+        return await resilientConnection.SelectAsync<Product>(id);
+    }
+}
+```
+
+### Query Caching
+
+Cache query results to improve performance:
+
+```csharp
+using Tuxedo.Caching;
+
+// Add caching support
+services.AddTuxedoCaching(options =>
+{
+    options.DefaultCacheDuration = TimeSpan.FromMinutes(5);
+    options.MaxCacheSize = 1000;
+});
+
+// Use cached queries
+public class CachedProductService
+{
+    private readonly IDbConnection _connection;
+    private readonly IQueryCache _cache;
+    
+    public CachedProductService(IDbConnection connection, IQueryCache cache)
+    {
+        _connection = connection;
+        _cache = cache;
+    }
+    
+    public async Task<IEnumerable<Product>> GetProductsByCategoryAsync(string category)
+    {
+        var cacheKey = $"products_category_{category}";
+        
+        return await _cache.GetOrAddAsync(
+            cacheKey,
+            async () => await _connection.SelectAsync<Product>(
+                "SELECT * FROM Products WHERE Category = @category",
+                new { category }
+            ),
+            TimeSpan.FromMinutes(10),
+            tags: new[] { "products", $"category:{category}" }
+        );
+    }
+    
+    public async Task InvalidateCategoryCache(string category)
+    {
+        await _cache.InvalidateByTagAsync($"category:{category}");
+    }
+}
+```
+
+### Fluent Query Builder
+
+Build complex queries with a type-safe, fluent API:
+
+```csharp
+using Tuxedo.QueryBuilder;
+
+public class ProductQueryService
+{
+    private readonly IDbConnection _connection;
+    
+    public async Task<IEnumerable<Product>> SearchProductsAsync(
+        string? category = null, 
+        decimal? minPrice = null,
+        decimal? maxPrice = null,
+        string? sortBy = null)
+    {
+        var query = QueryBuilderExtensions.Query<Product>()
+            .SelectAll();
+        
+        if (!string.IsNullOrEmpty(category))
+            query.Where(p => p.Category == category);
+            
+        if (minPrice.HasValue)
+            query.Where($"Price >= {minPrice.Value}");
+            
+        if (maxPrice.HasValue)
+            query.Where($"Price <= {maxPrice.Value}");
+            
+        if (sortBy == "price_asc")
+            query.OrderBy(p => p.Price);
+        else if (sortBy == "price_desc")
+            query.OrderByDescending(p => p.Price);
+        else
+            query.OrderBy(p => p.Name);
+            
+        return await query.ToListAsync(_connection);
+    }
+    
+    public async Task<PagedResult<Product>> GetPagedProductsAsync(
+        int page, 
+        int pageSize,
+        string? category = null)
+    {
+        var query = QueryBuilderExtensions.Query<Product>()
+            .SelectAll();
+            
+        if (!string.IsNullOrEmpty(category))
+            query.Where(p => p.Category == category);
+            
+        query.Page(page, pageSize);
+        
+        var items = await query.ToListAsync(_connection);
+        var total = await query.CountAsync(_connection);
+        
+        return new PagedResult<Product>
+        {
+            Items = items,
+            TotalCount = total,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+}
+```
+
+### Bulk Operations
+
+Efficiently handle large data sets:
+
+```csharp
+using Tuxedo.BulkOperations;
+
+public class BulkDataService
+{
+    private readonly IBulkOperations _bulkOps;
+    private readonly IDbConnection _connection;
+    
+    public BulkDataService(IBulkOperations bulkOps, IDbConnection connection)
+    {
+        _bulkOps = bulkOps;
+        _connection = connection;
+    }
+    
+    public async Task<int> ImportProductsAsync(IEnumerable<Product> products)
+    {
+        // Bulk insert with automatic batching
+        return await _bulkOps.BulkInsertAsync(
+            _connection,
+            products,
+            batchSize: 1000,
+            commandTimeout: 60
+        );
+    }
+    
+    public async Task<int> UpdatePricesAsync(IEnumerable<Product> products)
+    {
+        // Bulk update
+        return await _bulkOps.BulkUpdateAsync(
+            _connection,
+            products,
+            batchSize: 500
+        );
+    }
+    
+    public async Task<int> MergeProductsAsync(IEnumerable<Product> products)
+    {
+        // Upsert operation (insert or update)
+        return await _bulkOps.BulkMergeAsync(
+            _connection,
+            products
+        );
+    }
+}
+```
+
+### Repository Pattern
+
+Use generic repositories for clean architecture:
+
+```csharp
+using Tuxedo.Patterns;
+
+public interface IProductRepository : IRepository<Product>
+{
+    Task<IEnumerable<Product>> GetByCategoryAsync(string category);
+    Task<IEnumerable<Product>> GetTopSellingAsync(int count);
+}
+
+public class ProductRepository : DapperRepository<Product>, IProductRepository
+{
+    public ProductRepository(IDbConnection connection) : base(connection)
+    {
+    }
+    
+    public async Task<IEnumerable<Product>> GetByCategoryAsync(string category)
+    {
+        var sql = "SELECT * FROM Products WHERE Category = @category";
+        return await Connection.QueryAsync<Product>(sql, new { category });
+    }
+    
+    public async Task<IEnumerable<Product>> GetTopSellingAsync(int count)
+    {
+        var sql = @"
+            SELECT TOP(@count) p.* 
+            FROM Products p
+            INNER JOIN OrderItems oi ON p.Id = oi.ProductId
+            GROUP BY p.Id, p.Name, p.Price, p.Category
+            ORDER BY COUNT(oi.Id) DESC";
+            
+        return await Connection.QueryAsync<Product>(sql, new { count });
+    }
+}
+
+// Usage with DI
+public class ProductController : ControllerBase
+{
+    private readonly IProductRepository _repository;
+    
+    public ProductController(IProductRepository repository)
+    {
+        _repository = repository;
+    }
+    
+    [HttpGet("{id}")]
+    public async Task<ActionResult<Product>> GetProduct(int id)
+    {
+        var product = await _repository.GetByIdAsync(id);
+        if (product == null)
+            return NotFound();
+            
+        return product;
+    }
+    
+    [HttpGet("category/{category}")]
+    public async Task<ActionResult<IEnumerable<Product>>> GetByCategory(string category)
+    {
+        return Ok(await _repository.GetByCategoryAsync(category));
+    }
+}
+```
+
+### Unit of Work Pattern
+
+Manage transactions across multiple repositories:
+
+```csharp
+using Tuxedo.Patterns;
+
+public class OrderService
+{
+    private readonly IUnitOfWork _unitOfWork;
+    
+    public OrderService(IUnitOfWork unitOfWork)
+    {
+        _unitOfWork = unitOfWork;
+    }
+    
+    public async Task<Order> CreateOrderAsync(
+        Guid customerId, 
+        List<OrderItem> items)
+    {
+        await _unitOfWork.BeginTransactionAsync();
+        
+        try
+        {
+            // Create order
+            var orderRepo = _unitOfWork.Repository<Order>();
+            var order = new Order
+            {
+                CustomerId = customerId,
+                OrderDate = DateTime.UtcNow,
+                TotalAmount = items.Sum(i => i.Quantity * i.Price),
+                Status = "Pending"
+            };
+            await orderRepo.AddAsync(order);
+            
+            // Add order items
+            var itemRepo = _unitOfWork.Repository<OrderItem>();
+            foreach (var item in items)
+            {
+                item.OrderId = order.OrderId;
+                await itemRepo.AddAsync(item);
+            }
+            
+            // Update inventory
+            var productRepo = _unitOfWork.Repository<Product>();
+            foreach (var item in items)
+            {
+                var product = await productRepo.GetByIdAsync(item.ProductId);
+                product.StockQuantity -= item.Quantity;
+                await productRepo.UpdateAsync(product);
+            }
+            
+            await _unitOfWork.CommitAsync();
+            return order;
+        }
+        catch
+        {
+            await _unitOfWork.RollbackAsync();
+            throw;
+        }
+    }
+}
+```
+
+### Specification Pattern
+
+Express complex business rules as specifications:
+
+```csharp
+using Tuxedo.Specifications;
+
+public class ActiveProductSpecification : Specification<Product>
+{
+    public ActiveProductSpecification() 
+        : base(p => p.IsActive && p.StockQuantity > 0)
+    {
+    }
+}
+
+public class PremiumProductSpecification : Specification<Product>
+{
+    public PremiumProductSpecification(decimal minPrice) 
+        : base(p => p.Price >= minPrice)
+    {
+        ApplyOrderByDescending(p => p.Price);
+    }
+}
+
+public class CategorySpecification : Specification<Product>
+{
+    public CategorySpecification(string category)
+        : base(p => p.Category == category)
+    {
+    }
+}
+
+// Combine specifications
+public class PremiumElectronicsSpecification : Specification<Product>
+{
+    public PremiumElectronicsSpecification()
+    {
+        AddCriteria(p => p.Category == "Electronics");
+        AddCriteria(p => p.Price >= 1000);
+        AddCriteria(p => p.IsActive);
+        ApplyOrderByDescending(p => p.Price);
+        ApplyPaging(0, 10);
+    }
+}
+
+// Usage
+public class SpecificationService
+{
+    private readonly IDbConnection _connection;
+    
+    public async Task<IEnumerable<Product>> GetPremiumElectronicsAsync()
+    {
+        var spec = new PremiumElectronicsSpecification();
+        return await SpecificationEvaluator<Product>
+            .GetQueryAsync(_connection, spec);
+    }
+}
+```
+
+### Logging and Diagnostics
+
+Monitor and debug database operations:
+
+```csharp
+using Tuxedo.Diagnostics;
+
+// Register diagnostics
+services.AddSingleton<ITuxedoDiagnostics, TuxedoDiagnostics>();
+
+// Use diagnostics
+public class DiagnosticsExample
+{
+    private readonly ITuxedoDiagnostics _diagnostics;
+    
+    public DiagnosticsExample(ITuxedoDiagnostics diagnostics)
+    {
+        _diagnostics = diagnostics;
+        
+        // Subscribe to events
+        _diagnostics.QueryExecuted += OnQueryExecuted;
+        _diagnostics.ErrorOccurred += OnError;
+    }
+    
+    private void OnQueryExecuted(object sender, QueryExecutedEventArgs e)
+    {
+        if (e.Duration.TotalSeconds > 1)
+        {
+            Console.WriteLine($"Slow query detected: {e.Query}");
+            Console.WriteLine($"Duration: {e.Duration.TotalMilliseconds}ms");
+        }
+    }
+    
+    private void OnError(object sender, ErrorEventArgs e)
+    {
+        Console.WriteLine($"Database error: {e.Exception.Message}");
+        Console.WriteLine($"Query: {e.Query}");
+    }
+}
+```
+
 ## Advanced Features
 
 ### Custom Type Handlers
@@ -646,27 +981,6 @@ public class GuidTypeHandler : SqlMapper.TypeHandler<Guid>
 
 // Register the handler
 SqlMapper.AddTypeHandler(new GuidTypeHandler());
-```
-
-### Bulk Operations
-
-```csharp
-// Bulk insert using TVP (SQL Server)
-var products = GetLargeProductList(); // 10000+ products
-
-var table = new DataTable();
-table.Columns.Add("Name", typeof(string));
-table.Columns.Add("Price", typeof(decimal));
-table.Columns.Add("Category", typeof(string));
-
-foreach (var product in products)
-{
-    table.Rows.Add(product.Name, product.Price, product.Category);
-}
-
-var tvp = table.AsTableValuedParameter("ProductTableType");
-connection.Execute("sp_BulkInsertProducts", new { products = tvp }, 
-    commandType: CommandType.StoredProcedure);
 ```
 
 ### Performance Optimization
@@ -703,6 +1017,10 @@ await foreach (var product in connection.QueryUnbufferedAsync<Product>("SELECT *
 4. **Transaction Scope**: Use transactions for related operations
 5. **Connection Pooling**: Rely on built-in connection pooling
 6. **Batch Operations**: Use bulk operations for large data sets
+7. **Caching Strategy**: Cache frequently accessed, rarely changing data
+8. **Retry Policies**: Configure appropriate retry policies for production
+9. **Health Checks**: Implement health checks for monitoring
+10. **Specifications**: Use specifications for complex, reusable query logic
 
 ## SQL-Aligned API
 
@@ -727,6 +1045,7 @@ Tuxedo is designed to be a drop-in replacement. Simply:
 2. Replace `using Dapper.Contrib.Extensions;` with `using Tuxedo.Contrib;`
 3. Update package references from `Dapper` and `Dapper.Contrib` to `Tuxedo`
 4. Optionally, adopt the SQL-aligned methods (`Select`, `Insert`, `Update`, `Delete`) for new code
+5. Leverage enterprise features (resiliency, caching, etc.) as needed
 
 ## Contributing
 
@@ -738,4 +1057,4 @@ This project is licensed under the Apache License 2.0 - see the LICENSE file for
 
 ## Acknowledgments
 
-Tuxedo builds upon the excellent work of the Dapper and Dapper.Contrib teams, modernizing and unifying their functionality for contemporary .NET development.
+Tuxedo builds upon the excellent work of the Dapper and Dapper.Contrib teams, modernizing and unifying their functionality for contemporary .NET development with enterprise-grade features.
