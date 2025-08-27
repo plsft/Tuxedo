@@ -1210,17 +1210,9 @@ var host = Host.CreateDefaultBuilder(args)
         
         // Register application services
         services.AddScoped<IProductRepository, ProductRepository>();
-        services.AddScoped<DataMigrationService>();
         services.AddHostedService<DatabaseInitializer>();
     })
     .Build();
-
-// Initialize database
-using (var scope = host.Services.CreateScope())
-{
-    var migrationService = scope.ServiceProvider.GetRequiredService<DataMigrationService>();
-    await migrationService.InitializeDatabaseAsync();
-}
 
 // Run application
 await RunApplication(host.Services);
