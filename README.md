@@ -25,6 +25,7 @@ Tuxedo is a modernized .NET data access library that merges Dapper and Dapper.Co
 - **Specification Pattern**: Express complex queries as reusable business rules
 - **Logging & Diagnostics**: Comprehensive event-based monitoring and performance tracking
 - **Health Checks**: Built-in health check support for monitoring database connectivity
+- **Advanced Pagination**: Comprehensive pagination support with multiple implementation patterns
 
 ## Installation
 
@@ -88,6 +89,516 @@ public class Order
     public DateTime OrderDate { get; set; }
     public decimal TotalAmount { get; set; }
     public string Status { get; set; }
+}
+```
+
+## Pagination Support
+
+Tuxedo provides comprehensive pagination support through multiple patterns, suitable for different use cases and performance requirements.
+
+### Basic Pagination with Extension Methods
+
+```csharp
+using Tuxedo.Pagination;
+using Tuxedo.Patterns;
+
+// Simple paginated query
+var pagedProducts = await connection.QueryPagedAsync<Product>(
+    "SELECT * FROM Products WHERE Category = @category ORDER BY Name",
+    pageIndex: 0,
+    pageSize: 20,
+    param: new { category = "Electronics" }
+);
+
+Console.WriteLine($"Page {pagedProducts.PageIndex + 1} of {pagedProducts.TotalPages}");
+Console.WriteLine($"Showing {pagedProducts.Items.Count} of {pagedProducts.TotalCount} total items");
+Console.WriteLine($"Has next page: {pagedProducts.HasNextPage}");
+Console.WriteLine($"Has previous page: {pagedProducts.HasPreviousPage}");
+```
+
+### Pagination with Separate Count Query
+
+For better performance with complex queries, use a separate optimized count query:
+
+```csharp
+// Optimized pagination with separate count query
+var pagedResults = await connection.QueryPagedAsync<Product>(
+    selectSql: @"
+        SELECT p.*, c.CategoryName 
+        FROM Products p
+        INNER JOIN Categories c ON p.CategoryId = c.Id
+        WHERE p.Price > @minPrice
+        ORDER BY p.Price DESC",
+    countSql: @"
+        SELECT COUNT(*) 
+        FROM Products 
+        WHERE Price > @minPrice",
+    pageIndex: 0,
+    pageSize: 25,
+    param: new { minPrice = 100 }
+);
+```
+
+### Pagination with Repository Pattern
+
+```csharp
+using Tuxedo.Patterns;
+
+public interface IProductRepository : IRepository<Product>
+{
+    Task<PagedResult<Product>> GetPagedByCategoryAsync(
+        string category, 
+        int pageIndex, 
+        int pageSize);
+}
+
+public class ProductRepository : DapperRepository<Product>, IProductRepository
+{
+    public ProductRepository(IDbConnection connection) : base(connection)
+    {
+    }
+    
+    public async Task<PagedResult<Product>> GetPagedByCategoryAsync(
+        string category, 
+        int pageIndex, 
+        int pageSize)
+    {
+        // Use built-in GetPagedAsync method
+        return await GetPagedAsync(
+            pageIndex,
+            pageSize,
+            predicate: p => p.Category == category,
+            orderBy: q => q.OrderBy(p => p.Name)
+        );
+    }
+}
+
+// Usage
+var repository = new ProductRepository(connection);
+var pagedProducts = await repository.GetPagedByCategoryAsync(
+    "Electronics", 
+    pageIndex: 2, 
+    pageSize: 10
+);
+```
+
+### Pagination with Fluent Query Builder
+
+```csharp
+using Tuxedo.QueryBuilder;
+
+public class ProductService
+{
+    private readonly IDbConnection _connection;
+    
+    public async Task<PagedResult<Product>> GetProductsPagedAsync(
+        int pageIndex,
+        int pageSize,
+        string? category = null,
+        decimal? minPrice = null,
+        string? sortBy = null)
+    {
+        var query = QueryBuilderExtensions.Query<Product>();
+        
+        // Apply filters
+        if (!string.IsNullOrEmpty(category))
+            query.Where(p => p.Category == category);
+            
+        if (minPrice.HasValue)
+            query.Where($"Price >= {minPrice.Value}");
+        
+        // Apply sorting
+        switch (sortBy?.ToLower())
+        {
+            case "price":
+                query.OrderBy(p => p.Price);
+                break;
+            case "price_desc":
+                query.OrderByDescending(p => p.Price);
+                break;
+            case "name":
+                query.OrderBy(p => p.Name);
+                break;
+            default:
+                query.OrderBy(p => p.Id);
+                break;
+        }
+        
+        // Apply pagination
+        query.Page(pageIndex, pageSize);
+        
+        // Execute queries
+        var countQuery = QueryBuilderExtensions.Query<Product>();
+        if (!string.IsNullOrEmpty(category))
+            countQuery.Where(p => p.Category == category);
+        if (minPrice.HasValue)
+            countQuery.Where($"Price >= {minPrice.Value}");
+        
+        var items = await query.ToListAsync(_connection);
+        var totalCount = await countQuery.CountAsync(_connection);
+        
+        return new PagedResult<Product>(
+            items.ToList(), 
+            pageIndex, 
+            pageSize, 
+            totalCount
+        );
+    }
+}
+```
+
+### Advanced Pagination Scenarios
+
+#### 1. Cursor-Based Pagination (for real-time data)
+
+```csharp
+public async Task<CursorPagedResult<Product>> GetProductsCursorPaginatedAsync(
+    string? cursor,
+    int pageSize = 20)
+{
+    var sql = @"
+        SELECT * FROM Products 
+        WHERE (@cursor IS NULL OR Id > @cursor)
+        ORDER BY Id
+        LIMIT @pageSize + 1"; // Get one extra to check if there's a next page
+    
+    var items = (await connection.QueryAsync<Product>(
+        sql, 
+        new { cursor = cursor, pageSize = pageSize + 1 }
+    )).ToList();
+    
+    var hasNextPage = items.Count > pageSize;
+    if (hasNextPage)
+    {
+        items = items.Take(pageSize).ToList();
+    }
+    
+    var nextCursor = hasNextPage ? items.Last().Id.ToString() : null;
+    
+    return new CursorPagedResult<Product>
+    {
+        Items = items,
+        NextCursor = nextCursor,
+        HasNextPage = hasNextPage
+    };
+}
+
+public class CursorPagedResult<T>
+{
+    public List<T> Items { get; set; } = new();
+    public string? NextCursor { get; set; }
+    public bool HasNextPage { get; set; }
+}
+```
+
+#### 2. Keyset Pagination (for stable sorting)
+
+```csharp
+public async Task<PagedResult<Product>> GetProductsKeysetPaginatedAsync(
+    decimal? lastPrice,
+    int? lastId,
+    int pageSize = 20)
+{
+    var sql = @"
+        SELECT * FROM Products 
+        WHERE (Price, Id) > (@lastPrice, @lastId)
+        ORDER BY Price DESC, Id DESC
+        LIMIT @pageSize";
+    
+    var items = await connection.QueryAsync<Product>(
+        sql,
+        new { lastPrice = lastPrice ?? decimal.MaxValue, lastId = lastId ?? 0, pageSize }
+    );
+    
+    // Get total count separately
+    var totalCount = await connection.ExecuteScalarAsync<int>(
+        "SELECT COUNT(*) FROM Products"
+    );
+    
+    return new PagedResult<Product>(
+        items.ToList(),
+        0, // Page index not applicable for keyset pagination
+        pageSize,
+        totalCount
+    );
+}
+```
+
+#### 3. Pagination with Search and Filtering
+
+```csharp
+public class ProductSearchRequest : PageRequest
+{
+    public string? SearchTerm { get; set; }
+    public string? Category { get; set; }
+    public decimal? MinPrice { get; set; }
+    public decimal? MaxPrice { get; set; }
+    public bool? InStock { get; set; }
+}
+
+public async Task<PagedResult<Product>> SearchProductsAsync(
+    ProductSearchRequest request)
+{
+    // Validate pagination parameters
+    request.Validate(new PaginationOptions 
+    { 
+        MaxPageSize = 50,
+        DefaultPageSize = 20 
+    });
+    
+    var builder = new StringBuilder("SELECT * FROM Products WHERE 1=1");
+    var parameters = new DynamicParameters();
+    
+    // Build dynamic query
+    if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+    {
+        builder.Append(" AND (Name LIKE @search OR Description LIKE @search)");
+        parameters.Add("search", $"%{request.SearchTerm}%");
+    }
+    
+    if (!string.IsNullOrWhiteSpace(request.Category))
+    {
+        builder.Append(" AND Category = @category");
+        parameters.Add("category", request.Category);
+    }
+    
+    if (request.MinPrice.HasValue)
+    {
+        builder.Append(" AND Price >= @minPrice");
+        parameters.Add("minPrice", request.MinPrice.Value);
+    }
+    
+    if (request.MaxPrice.HasValue)
+    {
+        builder.Append(" AND Price <= @maxPrice");
+        parameters.Add("maxPrice", request.MaxPrice.Value);
+    }
+    
+    if (request.InStock.HasValue)
+    {
+        builder.Append(" AND StockQuantity " + (request.InStock.Value ? "> 0" : "= 0"));
+    }
+    
+    // Apply sorting
+    builder.Append($" ORDER BY {request.SortBy ?? "Id"} ");
+    builder.Append(request.SortDescending ? "DESC" : "ASC");
+    
+    var sql = builder.ToString();
+    
+    // Execute paginated query
+    return await connection.QueryPagedAsync<Product>(
+        sql,
+        request.PageIndex,
+        request.PageSize,
+        parameters
+    );
+}
+```
+
+#### 4. Pagination with Aggregations
+
+```csharp
+public class ProductPageWithStats<T> : PagedResult<T>
+{
+    public decimal AveragePrice { get; set; }
+    public decimal TotalValue { get; set; }
+    public Dictionary<string, int> CategoryCounts { get; set; } = new();
+    
+    public ProductPageWithStats(
+        IReadOnlyList<T> items, 
+        int pageIndex, 
+        int pageSize, 
+        int totalCount) 
+        : base(items, pageIndex, pageSize, totalCount)
+    {
+    }
+}
+
+public async Task<ProductPageWithStats<Product>> GetProductPageWithStatsAsync(
+    int pageIndex,
+    int pageSize)
+{
+    using var multi = await connection.QueryMultipleAsync(@"
+        -- Get paged products
+        SELECT * FROM Products 
+        ORDER BY Id
+        OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY;
+        
+        -- Get total count
+        SELECT COUNT(*) FROM Products;
+        
+        -- Get statistics
+        SELECT 
+            AVG(Price) as AveragePrice,
+            SUM(Price * StockQuantity) as TotalValue
+        FROM Products;
+        
+        -- Get category distribution
+        SELECT Category, COUNT(*) as Count
+        FROM Products
+        GROUP BY Category;",
+        new { offset = pageIndex * pageSize, pageSize }
+    );
+    
+    var items = (await multi.ReadAsync<Product>()).ToList();
+    var totalCount = await multi.ReadFirstAsync<int>();
+    var stats = await multi.ReadFirstAsync<dynamic>();
+    var categoryCounts = await multi.ReadAsync<dynamic>();
+    
+    var result = new ProductPageWithStats<Product>(
+        items, 
+        pageIndex, 
+        pageSize, 
+        totalCount
+    )
+    {
+        AveragePrice = stats.AveragePrice ?? 0,
+        TotalValue = stats.TotalValue ?? 0,
+        CategoryCounts = categoryCounts.ToDictionary(
+            c => (string)c.Category, 
+            c => (int)c.Count
+        )
+    };
+    
+    return result;
+}
+```
+
+#### 5. Server-Side Pagination for DataTables/Grids
+
+```csharp
+public class DataTableRequest
+{
+    public int Draw { get; set; }
+    public int Start { get; set; }
+    public int Length { get; set; }
+    public List<Column> Columns { get; set; } = new();
+    public List<Order> Order { get; set; } = new();
+    public Search Search { get; set; } = new();
+}
+
+public class DataTableResponse<T>
+{
+    public int Draw { get; set; }
+    public int RecordsTotal { get; set; }
+    public int RecordsFiltered { get; set; }
+    public List<T> Data { get; set; } = new();
+}
+
+public async Task<DataTableResponse<Product>> GetProductsForDataTableAsync(
+    DataTableRequest request)
+{
+    var searchValue = request.Search?.Value;
+    var orderColumn = request.Order?.FirstOrDefault();
+    var orderDir = orderColumn?.Dir ?? "asc";
+    var columnName = request.Columns[orderColumn?.Column ?? 0].Data;
+    
+    var whereClause = string.IsNullOrEmpty(searchValue) 
+        ? "" 
+        : "WHERE Name LIKE @search OR Category LIKE @search";
+    
+    var sql = $@"
+        SELECT * FROM Products {whereClause}
+        ORDER BY {columnName} {orderDir}
+        OFFSET @start ROWS FETCH NEXT @length ROWS ONLY;
+        
+        SELECT COUNT(*) FROM Products {whereClause};
+        
+        SELECT COUNT(*) FROM Products;";
+    
+    using var multi = await connection.QueryMultipleAsync(
+        sql,
+        new 
+        { 
+            search = $"%{searchValue}%",
+            start = request.Start,
+            length = request.Length
+        }
+    );
+    
+    var products = await multi.ReadAsync<Product>();
+    var filteredCount = await multi.ReadFirstAsync<int>();
+    var totalCount = await multi.ReadFirstAsync<int>();
+    
+    return new DataTableResponse<Product>
+    {
+        Draw = request.Draw,
+        Data = products.ToList(),
+        RecordsFiltered = filteredCount,
+        RecordsTotal = totalCount
+    };
+}
+```
+
+### Pagination Best Practices
+
+1. **Always include ORDER BY**: Ensure consistent pagination results
+2. **Use appropriate page sizes**: Balance between performance and user experience
+3. **Consider total count performance**: Use separate count queries for complex joins
+4. **Implement maximum page size limits**: Prevent excessive data retrieval
+5. **Cache count results**: For relatively static data, cache total counts
+6. **Use cursor pagination for real-time data**: Prevents missing or duplicate items
+7. **Index appropriately**: Ensure columns used in WHERE and ORDER BY are indexed
+
+### Pagination Performance Tips
+
+```csharp
+// 1. Use covering indexes for better performance
+await connection.ExecuteAsync(@"
+    CREATE INDEX IX_Products_Category_Price_Name 
+    ON Products(Category, Price DESC) 
+    INCLUDE (Name, StockQuantity)");
+
+// 2. Use approximate counts for large tables
+public async Task<long> GetApproximateProductCountAsync()
+{
+    // For SQL Server
+    var sql = @"
+        SELECT SUM(p.rows) 
+        FROM sys.partitions p 
+        WHERE p.object_id = OBJECT_ID('Products') 
+        AND p.index_id < 2";
+    
+    return await connection.ExecuteScalarAsync<long>(sql);
+}
+
+// 3. Use materialized views for complex aggregations
+await connection.ExecuteAsync(@"
+    CREATE MATERIALIZED VIEW ProductCategoryStats AS
+    SELECT 
+        Category,
+        COUNT(*) as ProductCount,
+        AVG(Price) as AvgPrice,
+        MIN(Price) as MinPrice,
+        MAX(Price) as MaxPrice
+    FROM Products
+    GROUP BY Category");
+
+// 4. Implement smart caching for pagination
+public class CachedPaginationService
+{
+    private readonly IMemoryCache _cache;
+    private readonly IDbConnection _connection;
+    
+    public async Task<PagedResult<Product>> GetCachedPageAsync(
+        string cacheKey,
+        int pageIndex,
+        int pageSize,
+        TimeSpan? cacheDuration = null)
+    {
+        var fullKey = $"{cacheKey}:{pageIndex}:{pageSize}";
+        
+        return await _cache.GetOrCreateAsync(fullKey, async entry =>
+        {
+            entry.SlidingExpiration = cacheDuration ?? TimeSpan.FromMinutes(5);
+            
+            return await _connection.GetPagedAsync<Product>(
+                pageIndex,
+                pageSize,
+                orderBy: "Name"
+            );
+        });
+    }
 }
 ```
 
@@ -617,69 +1128,7 @@ public class CachedProductService
 
 ### Fluent Query Builder
 
-Build complex queries with a type-safe, fluent API:
-
-```csharp
-using Tuxedo.QueryBuilder;
-
-public class ProductQueryService
-{
-    private readonly IDbConnection _connection;
-    
-    public async Task<IEnumerable<Product>> SearchProductsAsync(
-        string? category = null, 
-        decimal? minPrice = null,
-        decimal? maxPrice = null,
-        string? sortBy = null)
-    {
-        var query = QueryBuilderExtensions.Query<Product>()
-            .SelectAll();
-        
-        if (!string.IsNullOrEmpty(category))
-            query.Where(p => p.Category == category);
-            
-        if (minPrice.HasValue)
-            query.Where($"Price >= {minPrice.Value}");
-            
-        if (maxPrice.HasValue)
-            query.Where($"Price <= {maxPrice.Value}");
-            
-        if (sortBy == "price_asc")
-            query.OrderBy(p => p.Price);
-        else if (sortBy == "price_desc")
-            query.OrderByDescending(p => p.Price);
-        else
-            query.OrderBy(p => p.Name);
-            
-        return await query.ToListAsync(_connection);
-    }
-    
-    public async Task<PagedResult<Product>> GetPagedProductsAsync(
-        int page, 
-        int pageSize,
-        string? category = null)
-    {
-        var query = QueryBuilderExtensions.Query<Product>()
-            .SelectAll();
-            
-        if (!string.IsNullOrEmpty(category))
-            query.Where(p => p.Category == category);
-            
-        query.Page(page, pageSize);
-        
-        var items = await query.ToListAsync(_connection);
-        var total = await query.CountAsync(_connection);
-        
-        return new PagedResult<Product>
-        {
-            Items = items,
-            TotalCount = total,
-            Page = page,
-            PageSize = pageSize
-        };
-    }
-}
-```
+Build complex queries with a type-safe, fluent API. See the Pagination section above for comprehensive examples.
 
 ### Bulk Operations
 
@@ -1021,6 +1470,8 @@ await foreach (var product in connection.QueryUnbufferedAsync<Product>("SELECT *
 8. **Retry Policies**: Configure appropriate retry policies for production
 9. **Health Checks**: Implement health checks for monitoring
 10. **Specifications**: Use specifications for complex, reusable query logic
+11. **Pagination**: Always paginate large result sets with appropriate page sizes
+12. **Indexing**: Ensure proper indexes for pagination ORDER BY and WHERE clauses
 
 ## SQL-Aligned API
 
@@ -1045,7 +1496,7 @@ Tuxedo is designed to be a drop-in replacement. Simply:
 2. Replace `using Dapper.Contrib.Extensions;` with `using Tuxedo.Contrib;`
 3. Update package references from `Dapper` and `Dapper.Contrib` to `Tuxedo`
 4. Optionally, adopt the SQL-aligned methods (`Select`, `Insert`, `Update`, `Delete`) for new code
-5. Leverage enterprise features (resiliency, caching, etc.) as needed
+5. Leverage enterprise features (resiliency, caching, pagination, etc.) as needed
 
 ## Contributing
 
