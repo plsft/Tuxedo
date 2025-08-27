@@ -48,6 +48,24 @@ dotnet add package MySqlConnector
 dotnet add package Microsoft.Data.Sqlite
 ```
 
+## Quick Start - Dependency Injection
+
+```csharp
+// SQL Server
+services.AddTuxedoSqlServer(connectionString);
+
+// PostgreSQL
+services.AddTuxedoPostgres(connectionString);
+
+// MySQL
+services.AddTuxedoMySql(connectionString);
+
+// SQLite
+services.AddTuxedoSqlite(connectionString);
+// or for in-memory testing
+services.AddTuxedoSqliteInMemory();
+```
+
 ## Quick Start
 
 ### Basic Setup
@@ -935,31 +953,427 @@ var productCount = p.Get<int>("@product_count");
 
 Tuxedo provides comprehensive dependency injection support through IServiceCollection extensions, following best practices for connection lifetime management.
 
-### Basic DI Setup
+### RDBMS-Specific DI Extensions
+
+Each database platform has dedicated extension methods with platform-specific features:
+
+#### SQL Server
+```csharp
+// Basic setup
+services.AddTuxedoSqlServer("Server=localhost;Database=MyDb;...");
+
+// With configuration
+services.AddTuxedoSqlServer(
+    connectionString,
+    configureConnection: conn => {
+        conn.AccessToken = GetAzureToken();
+    },
+    openOnResolve: true,
+    commandTimeoutSeconds: 60);
+
+// With connection string factory
+services.AddTuxedoSqlServer(
+    sp => sp.GetRequiredService<IConfiguration>()["ConnectionStrings:SqlServer"]);
+```
+
+#### PostgreSQL
+```csharp
+// Basic setup
+services.AddTuxedoPostgres("Host=localhost;Database=mydb;...");
+
+// With configuration
+services.AddTuxedoPostgres(
+    connectionString,
+    configureConnection: conn => {
+        conn.ProvideClientCertificatesCallback = GetCertificates;
+    },
+    openOnResolve: true,
+    commandTimeoutSeconds: 30);
+
+// With connection string factory
+services.AddTuxedoPostgres(
+    sp => sp.GetRequiredService<ISecretManager>().GetConnectionString());
+```
+
+#### MySQL
+```csharp
+// Basic setup
+services.AddTuxedoMySql("Server=localhost;Database=mydb;...");
+
+// With configuration
+services.AddTuxedoMySql(
+    connectionString,
+    configureConnection: conn => {
+        conn.SslMode = MySqlSslMode.Required;
+    },
+    openOnResolve: true,
+    commandTimeoutSeconds: 30);
+
+// With connection string factory
+services.AddTuxedoMySql(
+    sp => sp.GetRequiredService<IConfiguration>()["ConnectionStrings:MySQL"]);
+```
+
+#### SQLite
+```csharp
+// File-based SQLite
+services.AddTuxedoSqlite("Data Source=app.db");
+
+// In-memory SQLite (great for testing)
+services.AddTuxedoSqliteInMemory(
+    databaseName: "TestDb",
+    lifetime: ServiceLifetime.Singleton);
+
+// File with auto-creation
+services.AddTuxedoSqliteFile(
+    databasePath: "data/app.db",
+    createIfNotExists: true);
+
+// Configuration-based
+services.AddTuxedoSqliteWithOptions(
+    configuration,
+    sectionName: "SqliteSettings");
+```
+
+### Complete Web API Example
 
 ```csharp
+// Program.cs
 using Tuxedo.DependencyInjection;
 
-// In your Program.cs or Startup.cs
 var builder = WebApplication.CreateBuilder(args);
 
-// Add Tuxedo with SQL Server
-builder.Services.AddTuxedoSqlServer(
-    builder.Configuration.GetConnectionString("SqlServer"));
+// Add controllers
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
-// Or with PostgreSQL
-builder.Services.AddTuxedoPostgres(
-    builder.Configuration.GetConnectionString("Postgres"));
+// Configure Tuxedo based on environment
+if (builder.Environment.IsDevelopment())
+{
+    // Use SQLite for development
+    builder.Services.AddTuxedoSqliteFile(
+        "dev.db",
+        createIfNotExists: true);
+}
+else if (builder.Environment.IsEnvironment("Testing"))
+{
+    // Use in-memory SQLite for testing
+    builder.Services.AddTuxedoSqliteInMemory("TestDb");
+}
+else
+{
+    // Use SQL Server for production
+    builder.Services.AddTuxedoSqlServer(
+        builder.Configuration.GetConnectionString("Production"),
+        configureConnection: conn => {
+            // Configure Azure AD authentication
+            conn.AccessToken = GetAzureAdToken();
+        },
+        commandTimeoutSeconds: 60);
+}
 
-// Or with MySQL
-builder.Services.AddTuxedoMySql(
-    builder.Configuration.GetConnectionString("MySql"));
-
-// Or with SQLite
-builder.Services.AddTuxedoSqlite(
-    builder.Configuration.GetConnectionString("Sqlite"));
+// Add health checks
+builder.Services.AddHealthChecks()
+    .AddCheck<TuxedoHealthCheck>("database");
 
 var app = builder.Build();
+
+// Configure middleware
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapControllers();
+app.MapHealthChecks("/health");
+
+app.Run();
+
+// ProductController.cs
+[ApiController]
+[Route("api/[controller]")]
+public class ProductController : ControllerBase
+{
+    private readonly IDbConnection _connection;
+    private readonly ILogger<ProductController> _logger;
+
+    public ProductController(IDbConnection connection, ILogger<ProductController> logger)
+    {
+        _connection = connection;
+        _logger = logger;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetProducts([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    {
+        var products = await _connection.QueryPagedAsync<Product>(
+            "SELECT * FROM Products ORDER BY Id",
+            page,
+            pageSize);
+        
+        return Ok(products);
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetProduct(int id)
+    {
+        var product = await _connection.SelectAsync<Product>(id);
+        return product != null ? Ok(product) : NotFound();
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> CreateProduct(Product product)
+    {
+        var id = await _connection.InsertAsync(product);
+        product.Id = id;
+        return CreatedAtAction(nameof(GetProduct), new { id }, product);
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateProduct(int id, Product product)
+    {
+        product.Id = id;
+        var success = await _connection.UpdateAsync(product);
+        return success ? NoContent() : NotFound();
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteProduct(int id)
+    {
+        var product = await _connection.SelectAsync<Product>(id);
+        if (product == null) return NotFound();
+        
+        await _connection.DeleteAsync(product);
+        return NoContent();
+    }
+}
+```
+
+### Complete Console Application Example
+
+```csharp
+// Program.cs
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using System.Data;
+using Tuxedo;
+using Tuxedo.DependencyInjection;
+
+// Build configuration
+var configuration = new ConfigurationBuilder()
+    .SetBasePath(Directory.GetCurrentDirectory())
+    .AddJsonFile("appsettings.json", optional: false)
+    .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ENVIRONMENT") ?? "Development"}.json", optional: true)
+    .AddEnvironmentVariables()
+    .Build();
+
+// Create host
+var host = Host.CreateDefaultBuilder(args)
+    .ConfigureServices((context, services) =>
+    {
+        // Configure database based on configuration
+        var dbProvider = configuration["DatabaseProvider"] ?? "Sqlite";
+        
+        switch (dbProvider.ToLower())
+        {
+            case "sqlserver":
+                services.AddTuxedoSqlServer(
+                    configuration.GetConnectionString("SqlServer"),
+                    commandTimeoutSeconds: 30);
+                break;
+                
+            case "postgres":
+                services.AddTuxedoPostgres(
+                    configuration.GetConnectionString("Postgres"),
+                    commandTimeoutSeconds: 30);
+                break;
+                
+            case "mysql":
+                services.AddTuxedoMySql(
+                    configuration.GetConnectionString("MySql"),
+                    commandTimeoutSeconds: 30);
+                break;
+                
+            case "sqlite":
+            default:
+                services.AddTuxedoSqliteFile(
+                    configuration["SqliteDbPath"] ?? "app.db",
+                    createIfNotExists: true);
+                break;
+        }
+        
+        // Register application services
+        services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<DataMigrationService>();
+        services.AddHostedService<DatabaseInitializer>();
+    })
+    .Build();
+
+// Initialize database
+using (var scope = host.Services.CreateScope())
+{
+    var migrationService = scope.ServiceProvider.GetRequiredService<DataMigrationService>();
+    await migrationService.InitializeDatabaseAsync();
+}
+
+// Run application
+await RunApplication(host.Services);
+
+static async Task RunApplication(IServiceProvider services)
+{
+    using var scope = services.CreateScope();
+    var connection = scope.ServiceProvider.GetRequiredService<IDbConnection>();
+    var repository = scope.ServiceProvider.GetRequiredService<IProductRepository>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    
+    logger.LogInformation("Starting console application...");
+    
+    // Menu loop
+    while (true)
+    {
+        Console.WriteLine("\n=== Product Management ===");
+        Console.WriteLine("1. List all products");
+        Console.WriteLine("2. Add product");
+        Console.WriteLine("3. Update product");
+        Console.WriteLine("4. Delete product");
+        Console.WriteLine("5. Bulk import");
+        Console.WriteLine("6. Export to CSV");
+        Console.WriteLine("0. Exit");
+        Console.Write("Choice: ");
+        
+        var choice = Console.ReadLine();
+        
+        switch (choice)
+        {
+            case "1":
+                await ListProducts(repository);
+                break;
+            case "2":
+                await AddProduct(repository);
+                break;
+            case "3":
+                await UpdateProduct(repository);
+                break;
+            case "4":
+                await DeleteProduct(repository);
+                break;
+            case "5":
+                await BulkImport(connection);
+                break;
+            case "6":
+                await ExportToCsv(connection);
+                break;
+            case "0":
+                return;
+        }
+    }
+}
+
+// Repository implementation
+public interface IProductRepository
+{
+    Task<IEnumerable<Product>> GetAllAsync();
+    Task<Product?> GetByIdAsync(int id);
+    Task<int> CreateAsync(Product product);
+    Task<bool> UpdateAsync(Product product);
+    Task<bool> DeleteAsync(int id);
+}
+
+public class ProductRepository : IProductRepository
+{
+    private readonly IDbConnection _connection;
+    
+    public ProductRepository(IDbConnection connection)
+    {
+        _connection = connection;
+    }
+    
+    public async Task<IEnumerable<Product>> GetAllAsync()
+    {
+        return await _connection.SelectAllAsync<Product>();
+    }
+    
+    public async Task<Product?> GetByIdAsync(int id)
+    {
+        return await _connection.SelectAsync<Product>(id);
+    }
+    
+    public async Task<int> CreateAsync(Product product)
+    {
+        return await _connection.InsertAsync(product);
+    }
+    
+    public async Task<bool> UpdateAsync(Product product)
+    {
+        return await _connection.UpdateAsync(product);
+    }
+    
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var product = await GetByIdAsync(id);
+        if (product == null) return false;
+        return await _connection.DeleteAsync(product);
+    }
+}
+
+// Database initialization service
+public class DatabaseInitializer : IHostedService
+{
+    private readonly IServiceProvider _serviceProvider;
+    private readonly ILogger<DatabaseInitializer> _logger;
+    
+    public DatabaseInitializer(IServiceProvider serviceProvider, ILogger<DatabaseInitializer> logger)
+    {
+        _serviceProvider = serviceProvider;
+        _logger = logger;
+    }
+    
+    public async Task StartAsync(CancellationToken cancellationToken)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var connection = scope.ServiceProvider.GetRequiredService<IDbConnection>();
+        
+        _logger.LogInformation("Initializing database...");
+        
+        await connection.ExecuteAsync(@"
+            CREATE TABLE IF NOT EXISTS Products (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Name TEXT NOT NULL,
+                Price DECIMAL(10,2) NOT NULL,
+                Category TEXT,
+                CreatedDate DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+        
+        _logger.LogInformation("Database initialized successfully");
+    }
+    
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+}
+
+// appsettings.json
+{
+  "DatabaseProvider": "Sqlite",
+  "SqliteDbPath": "products.db",
+  "ConnectionStrings": {
+    "SqlServer": "Server=localhost;Database=ProductDb;Trusted_Connection=true;",
+    "Postgres": "Host=localhost;Database=productdb;Username=postgres;Password=postgres",
+    "MySql": "Server=localhost;Database=productdb;Uid=root;Pwd=password",
+    "Sqlite": "Data Source=products.db"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft": "Warning"
+    }
+  }
+}
 ```
 
 ### Advanced DI with SQL Dialects and Health Checks
