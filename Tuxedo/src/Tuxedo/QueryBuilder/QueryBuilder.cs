@@ -410,6 +410,7 @@ namespace Tuxedo.QueryBuilder
                 TuxedoDialect.SqlServer => BuildSqlServerPagination(skip, take),
                 TuxedoDialect.Postgres => BuildPostgresPagination(skip, take),
                 TuxedoDialect.MySql => BuildMySqlPagination(skip, take),
+                TuxedoDialect.Sqlite => BuildSqlitePagination(skip, take),
                 _ => BuildStandardPagination(skip, take)
             };
         }
@@ -440,6 +441,11 @@ namespace Tuxedo.QueryBuilder
         }
 
         private string BuildMySqlPagination(int? skip, int? take)
+        {
+            return BuildStandardPagination(skip, take);
+        }
+
+        private string BuildSqlitePagination(int? skip, int? take)
         {
             return BuildStandardPagination(skip, take);
         }

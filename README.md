@@ -1,12 +1,12 @@
 # Tuxedo
 
-Tuxedo is a modernized .NET data access library that merges Dapper and Dapper.Contrib functionality into a single, unified package optimized for .NET 6+. It provides high-performance object mapping with built-in support for SQL Server, PostgreSQL, and MySQL, along with enterprise-grade features for resilience, caching, and advanced query patterns.
+Tuxedo is a modernized .NET data access library that merges Dapper and Dapper.Contrib functionality into a single, unified package optimized for .NET 6+. It provides high-performance object mapping with built-in support for SQL Server, PostgreSQL, MySQL, and SQLite, along with enterprise-grade features for resilience, caching, and advanced query patterns.
 
 ## Features
 
 ### Core Features
 - **High Performance**: Built on Dapper's proven performance characteristics
-- **Multi-Database Support**: Native adapters for SQL Server, PostgreSQL, and MySQL with dialect-aware SQL generation
+- **Multi-Database Support**: Native adapters for SQL Server, PostgreSQL, MySQL, and SQLite with dialect-aware SQL generation
 - **Modern .NET**: Optimized for .NET 6, .NET 8, and .NET 9
 - **SQL-Aligned CRUD Operations**: Native Insert, Update, Delete, and Select methods matching SQL verbs
 - **Query Support**: Full Dapper query capabilities with async support
@@ -43,6 +43,9 @@ dotnet add package Npgsql
 
 # MySQL
 dotnet add package MySqlConnector
+
+# SQLite
+dotnet add package Microsoft.Data.Sqlite
 ```
 
 ## Quick Start
@@ -952,6 +955,10 @@ builder.Services.AddTuxedoPostgres(
 builder.Services.AddTuxedoMySql(
     builder.Configuration.GetConnectionString("MySql"));
 
+// Or with SQLite
+builder.Services.AddTuxedoSqlite(
+    builder.Configuration.GetConnectionString("Sqlite"));
+
 var app = builder.Build();
 ```
 
@@ -1037,6 +1044,155 @@ public class BatchProcessor
         }
     }
 }
+```
+
+## SQLite Support
+
+Tuxedo provides comprehensive SQLite support with specialized features for both production and testing scenarios:
+
+### SQLite Setup Options
+
+```csharp
+// Standard SQLite with connection string
+builder.Services.AddTuxedoSqlite("Data Source=app.db");
+
+// File-based SQLite with auto-creation
+builder.Services.AddTuxedoSqliteFile(
+    databasePath: "data/app.db",
+    createIfNotExists: true);
+
+// In-memory SQLite for testing
+builder.Services.AddTuxedoSqliteInMemory(
+    databaseName: "TestDb", // Optional: named in-memory database
+    lifetime: ServiceLifetime.Singleton); // Keep connection alive
+
+// Configuration-based setup
+builder.Services.AddTuxedoSqliteWithOptions(
+    configuration,
+    sectionName: "TuxedoSqlite");
+```
+
+### SQLite Configuration Options
+
+```json
+{
+  "TuxedoSqlite": {
+    "ConnectionString": "Data Source=app.db",
+    "Mode": "ReadWriteCreate",
+    "Cache": "Shared",
+    "DefaultTimeout": 30,
+    "Pooling": true,
+    "ForeignKeys": true,
+    "RecursiveTriggers": false,
+    "OpenOnResolve": true
+  }
+}
+```
+
+### SQLite-Specific Features
+
+```csharp
+public class SqliteService
+{
+    private readonly SqliteConnection _connection;
+    
+    public SqliteService(SqliteConnection connection)
+    {
+        _connection = connection;
+    }
+    
+    public async Task InitializeDatabaseAsync()
+    {
+        // Create tables with SQLite-specific syntax
+        await _connection.ExecuteAsync(@"
+            CREATE TABLE IF NOT EXISTS Products (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Name TEXT NOT NULL,
+                Price REAL NOT NULL,
+                Category TEXT,
+                LastModified TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+        
+        // Enable foreign keys (required per connection in SQLite)
+        await _connection.ExecuteAsync("PRAGMA foreign_keys = ON");
+    }
+    
+    public async Task<long> InsertWithLastRowIdAsync(Product product)
+    {
+        await _connection.InsertAsync(product);
+        return _connection.LastInsertRowId;
+    }
+}
+```
+
+### Testing with In-Memory SQLite
+
+```csharp
+public class ProductServiceTests : IDisposable
+{
+    private readonly ServiceProvider _provider;
+    private readonly IDbConnection _connection;
+    
+    public ProductServiceTests()
+    {
+        var services = new ServiceCollection();
+        
+        // Use in-memory SQLite for fast, isolated tests
+        services.AddTuxedoSqliteInMemory("TestDb");
+        
+        _provider = services.BuildServiceProvider();
+        _connection = _provider.GetRequiredService<IDbConnection>();
+        
+        // Initialize test schema
+        InitializeTestDatabase();
+    }
+    
+    private void InitializeTestDatabase()
+    {
+        _connection.Execute(@"
+            CREATE TABLE Products (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Name TEXT NOT NULL,
+                Price REAL NOT NULL
+            )
+        ");
+    }
+    
+    [Fact]
+    public async Task Should_Insert_Product()
+    {
+        // Arrange
+        var product = new Product { Name = "Test", Price = 9.99m };
+        
+        // Act
+        var id = await _connection.InsertAsync(product);
+        
+        // Assert
+        var retrieved = await _connection.SelectAsync<Product>(id);
+        Assert.Equal("Test", retrieved.Name);
+    }
+    
+    public void Dispose()
+    {
+        _connection?.Dispose();
+        _provider?.Dispose();
+    }
+}
+```
+
+### SQLite Bulk Operations
+
+SQLite supports efficient bulk operations with Tuxedo's bulk extensions:
+
+```csharp
+var bulkOps = new BulkOperations(TuxedoDialect.Sqlite);
+
+// Bulk insert with SQLite
+await bulkOps.BulkInsertAsync(connection, products, batchSize: 500);
+
+// Bulk merge (upsert) using SQLite's ON CONFLICT
+await bulkOps.BulkMergeAsync(connection, products);
 ```
 
 ## Enterprise Features

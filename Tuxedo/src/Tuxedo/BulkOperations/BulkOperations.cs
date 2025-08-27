@@ -204,7 +204,7 @@ namespace Tuxedo.BulkOperations
         {
             if (_dialect != TuxedoDialect.SqlServer)
             {
-                // For non-SQL Server, use INSERT ... ON CONFLICT (PostgreSQL) or INSERT ... ON DUPLICATE KEY (MySQL)
+                // For non-SQL Server, use INSERT ... ON CONFLICT (PostgreSQL/SQLite) or INSERT ... ON DUPLICATE KEY (MySQL)
                 return BuildUpsertSql(tableName, properties, keyProperty);
             }
 
@@ -235,6 +235,12 @@ namespace Tuxedo.BulkOperations
             return _dialect switch
             {
                 TuxedoDialect.Postgres => $@"
+                    INSERT INTO {tableName} ({columns}) 
+                    VALUES ({values})
+                    ON CONFLICT ({keyProperty.Name}) 
+                    DO UPDATE SET {updateSet}",
+                
+                TuxedoDialect.Sqlite => $@"
                     INSERT INTO {tableName} ({columns}) 
                     VALUES ({values})
                     ON CONFLICT ({keyProperty.Name}) 

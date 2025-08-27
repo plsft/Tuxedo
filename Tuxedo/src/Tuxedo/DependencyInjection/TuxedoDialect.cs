@@ -4,6 +4,7 @@ namespace Tuxedo.DependencyInjection
     {
         SqlServer,
         Postgres,
-        MySql
+        MySql,
+        Sqlite
     }
 }
