@@ -64,7 +64,7 @@ public class UpdatePartialTests
         product.Price = 999.99m; // This should NOT be updated
         product.Category = "Should Not Update"; // This should NOT be updated
 
-        var result = db.UpdatePartial(product, new[] { "Name", "LastUpdated" });
+        var result = db.Update(product, null, null, new[] { "Name", "LastUpdated" });
 
         Assert.True(result);
 
@@ -96,7 +96,7 @@ public class UpdatePartialTests
         product.Price = 25.50m;
         product.Name = "Should Not Update";
 
-        var result = db.UpdatePartial(product, null, null, "Price");
+        var result = db.Update(product, null, null, "Price");
 
         Assert.True(result);
 
@@ -121,7 +121,7 @@ public class UpdatePartialTests
         var id2 = (int)db.Insert(product2);
 
         // Update only product1's name and price using key/update objects
-        var result = db.UpdatePartial<Product>(
+        var result = db.Update<Product>(
             keyValues: new { Id = id1 }, 
             updateValues: new { Name = "Updated Product 1", Price = 15.00m }
         );
@@ -163,7 +163,7 @@ public class UpdatePartialTests
         product.Category = "Async Updated Category";
         product.Price = 999.99m; // This should NOT be updated
 
-        var result = await db.UpdatePartialAsync(product, new[] { "Name", "Category" });
+        var result = await db.UpdateAsync(product, null, null, new[] { "Name", "Category" });
 
         Assert.True(result);
 
@@ -185,7 +185,7 @@ public class UpdatePartialTests
         var id = db.Insert(product);
 
         // Update using key/update objects async
-        var result = await db.UpdatePartialAsync<Product>(
+        var result = await db.UpdateAsync<Product>(
             keyValues: new { Id = id }, 
             updateValues: new { Name = "Async Updated", LastUpdated = DateTime.Now }
         );
@@ -210,7 +210,7 @@ public class UpdatePartialTests
         product.Id = id;
 
         Assert.Throws<ArgumentException>(() => 
-            db.UpdatePartial(product, new[] { "NonExistentProperty" })
+            db.Update(product, null, null, new[] { "NonExistentProperty" })
         );
     }
 
@@ -225,7 +225,7 @@ public class UpdatePartialTests
 
         // Should not allow updating key properties
         Assert.Throws<ArgumentException>(() => 
-            db.UpdatePartial(product, new[] { "Id", "Name" })
+            db.Update(product, null, null, new[] { "Id", "Name" })
         );
     }
 
@@ -235,7 +235,7 @@ public class UpdatePartialTests
         using var db = CreateSqliteConnection();
 
         Assert.Throws<ArgumentException>(() => 
-            db.UpdatePartial<Product>(null!, new[] { "Name" })
+            db.Update<Product>(null!, null, null, new[] { "Name" })
         );
     }
 
@@ -247,7 +247,7 @@ public class UpdatePartialTests
         var product = new Product { Name = "Test", Price = 10.00m };
 
         Assert.Throws<ArgumentException>(() => 
-            db.UpdatePartial(product, new string[0])
+            db.Update(product, null, null, new string[0])
         );
     }
 
@@ -258,7 +258,7 @@ public class UpdatePartialTests
 
         var product = new Product { Id = 999, Name = "Non-existent", Price = 10.00m };
 
-        var result = db.UpdatePartial(product, new[] { "Name" });
+        var result = db.Update(product, null, null, new[] { "Name" });
 
         Assert.False(result);
     }
@@ -281,7 +281,7 @@ public class UpdatePartialTests
         product.Name = "Updated Name";
         product.CreatedDate = DateTime.Now; // Should be ignored
 
-        var result = db.UpdatePartial(product, new[] { "Name", "CreatedDate" });
+        var result = db.Update(product, null, null, new[] { "Name", "CreatedDate" });
 
         Assert.True(result); // Should succeed
 
@@ -303,7 +303,7 @@ public class UpdatePartialTests
         product.Name = "Case Insensitive Update";
 
         // Use different case for property names
-        var result = db.UpdatePartial(product, new[] { "name", "PRICE" });
+        var result = db.Update(product, null, null, new[] { "name", "PRICE" });
 
         Assert.True(result);
 
@@ -327,7 +327,7 @@ public class UpdatePartialTests
         var id3 = (int)db.Insert(product3);
 
         // This tests the key/value version - should only update one record at a time by design
-        var result = db.UpdatePartial<Product>(
+        var result = db.Update<Product>(
             keyValues: new { Category = "Electronics" },
             updateValues: new { Price = 99m }
         );

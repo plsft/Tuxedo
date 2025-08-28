@@ -295,7 +295,7 @@ public class ReadmeSamplesTest
         product.LastModified = DateTime.Now;
         product.Price = 999.99m; // This should NOT be updated
 
-        var updated = db.UpdatePartial(product, new[] { "Name", "LastModified" });
+        var updated = db.Update(product, null, null, new[] { "Name", "LastModified" });
         Assert.True(updated);
 
         // Verify only specified fields were updated
@@ -321,7 +321,7 @@ public class ReadmeSamplesTest
         var id = (int)db.Insert(product);
 
         // Update using separate key/value objects
-        var updated = db.UpdatePartial<Product>(
+        var updated = db.Update<Product>(
             keyValues: new { Id = id },
             updateValues: new { Name = "Updated via Objects", Price = 19.99m }
         );
@@ -354,7 +354,7 @@ public class ReadmeSamplesTest
         product.Name = "Async Updated Product";
         product.Price = 999.99m; // Should NOT be updated
 
-        var updated = await db.UpdatePartialAsync(product, new[] { "Name" });
+        var updated = await db.UpdateAsync(product, null, null, new[] { "Name" });
         Assert.True(updated);
 
         // Verify only Name was updated

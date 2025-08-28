@@ -206,7 +206,7 @@ namespace Tuxedo.Contrib
         /// <param name="transaction">The transaction to run under, null (the default) if none</param>
         /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
         /// <returns>true if updated, false if not found or not modified (tracked entities)</returns>
-        public static async Task<bool> UpdateAsync<T>(this IDbConnection connection, T entityToUpdate, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        public static async Task<bool> UpdateAsync<T>(this IDbConnection connection, T entityToUpdate, IDbTransaction transaction = null, int? commandTimeout = null, string[] propertiesToUpdate = null) where T : class
         {
             if ((entityToUpdate is IProxy proxy) && !proxy.IsDirty)
             {
@@ -245,7 +245,39 @@ namespace Tuxedo.Contrib
             var allProperties = TypePropertiesCache(type);
             keyProperties.AddRange(explicitKeyProperties);
             var computedProperties = ComputedPropertiesCache(type);
-            var nonIdProps = allProperties.Except(keyProperties.Union(computedProperties)).ToList();
+            
+            List<PropertyInfo> nonIdProps;
+            
+            if (propertiesToUpdate != null && propertiesToUpdate.Length > 0)
+            {
+                // Partial update logic
+                if (propertiesToUpdate.Any(string.IsNullOrWhiteSpace))
+                    throw new ArgumentException("Property names cannot be null or empty", nameof(propertiesToUpdate));
+
+                var propertiesToUpdateSet = new HashSet<string>(propertiesToUpdate, StringComparer.OrdinalIgnoreCase);
+                var updateProperties = allProperties.Where(p => propertiesToUpdateSet.Contains(p.Name)).ToList();
+                
+                if (updateProperties.Count != propertiesToUpdate.Length)
+                {
+                    var foundProperties = updateProperties.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    var missingProperties = propertiesToUpdate.Where(p => !foundProperties.Contains(p));
+                    throw new ArgumentException($"Properties not found on type {type.Name}: {string.Join(", ", missingProperties)}", nameof(propertiesToUpdate));
+                }
+                
+                var keyPropsInUpdate = updateProperties.Where(p => keyProperties.Contains(p));
+                if (keyPropsInUpdate.Any())
+                    throw new ArgumentException($"Cannot update key properties: {string.Join(", ", keyPropsInUpdate.Select(p => p.Name))}", nameof(propertiesToUpdate));
+                
+                nonIdProps = updateProperties.Except(computedProperties).ToList();
+                
+                if (nonIdProps.Count == 0)
+                    throw new ArgumentException("No updatable properties specified (computed properties are ignored)", nameof(propertiesToUpdate));
+            }
+            else
+            {
+                // Full update logic (original behavior)
+                nonIdProps = allProperties.Except(keyProperties.Union(computedProperties)).ToList();
+            }
 
             var adapter = GetFormatter(connection);
 
@@ -269,88 +301,6 @@ namespace Tuxedo.Contrib
         }
 
         /// <summary>
-        /// Updates only specified properties of entity in table "Ts" by property names asynchronously using Task.
-        /// </summary>
-        /// <typeparam name="T">Type of entity</typeparam>
-        /// <param name="connection">Open SqlConnection</param>
-        /// <param name="entityToUpdate">Entity to be updated</param>
-        /// <param name="propertiesToUpdate">Names of properties to update</param>
-        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
-        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
-        /// <returns>true if updated, false if not found</returns>
-        public static async Task<bool> UpdatePartialAsync<T>(this IDbConnection connection, T entityToUpdate, string[] propertiesToUpdate, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
-        {
-            if (entityToUpdate == null)
-                throw new ArgumentException("Cannot update null entity", nameof(entityToUpdate));
-            if (propertiesToUpdate == null || propertiesToUpdate.Length == 0)
-                throw new ArgumentException("Must specify at least one property to update", nameof(propertiesToUpdate));
-
-            var type = typeof(T);
-
-            var keyProperties = KeyPropertiesCache(type).ToList();
-            var explicitKeyProperties = ExplicitKeyPropertiesCache(type);
-            if (keyProperties.Count == 0 && explicitKeyProperties.Count == 0)
-                throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
-
-            var name = GetTableName(type);
-            var allProperties = TypePropertiesCache(type);
-            keyProperties.AddRange(explicitKeyProperties);
-            
-            // Get properties to update by name (case-insensitive)
-            var propertiesToUpdateSet = new HashSet<string>(propertiesToUpdate, StringComparer.OrdinalIgnoreCase);
-            var updateProperties = allProperties.Where(p => propertiesToUpdateSet.Contains(p.Name)).ToList();
-            
-            if (updateProperties.Count == 0)
-                throw new ArgumentException("No matching properties found to update", nameof(propertiesToUpdate));
-
-            // Don't allow updating key properties
-            var keyPropertyNames = keyProperties.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var invalidProperties = updateProperties.Where(p => keyPropertyNames.Contains(p.Name)).ToList();
-            if (invalidProperties.Any())
-                throw new ArgumentException($"Cannot update key properties: {string.Join(", ", invalidProperties.Select(p => p.Name))}");
-
-            var sb = new StringBuilder();
-            sb.AppendFormat("update {0} set ", name);
-
-            var adapter = GetFormatter(connection);
-
-            for (var i = 0; i < updateProperties.Count; i++)
-            {
-                var property = updateProperties[i];
-                adapter.AppendColumnNameEqualsValue(sb, property.Name);
-                if (i < updateProperties.Count - 1)
-                    sb.Append(", ");
-            }
-            
-            sb.Append(" where ");
-            for (var i = 0; i < keyProperties.Count; i++)
-            {
-                var property = keyProperties[i];
-                adapter.AppendColumnNameEqualsValue(sb, property.Name);
-                if (i < keyProperties.Count - 1)
-                    sb.Append(" and ");
-            }
-
-            var updated = await connection.ExecuteAsync(sb.ToString(), entityToUpdate, commandTimeout: commandTimeout, transaction: transaction).ConfigureAwait(false);
-            return updated > 0;
-        }
-
-        /// <summary>
-        /// Updates only specified properties of entity in table "Ts" by property names asynchronously using Task.
-        /// </summary>
-        /// <typeparam name="T">Type of entity</typeparam>
-        /// <param name="connection">Open SqlConnection</param>
-        /// <param name="entityToUpdate">Entity to be updated</param>
-        /// <param name="propertiesToUpdate">Names of properties to update</param>
-        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
-        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
-        /// <returns>true if updated, false if not found</returns>
-        public static Task<bool> UpdatePartialAsync<T>(this IDbConnection connection, T entityToUpdate, IDbTransaction transaction = null, int? commandTimeout = null, params string[] propertiesToUpdate) where T : class
-        {
-            return UpdatePartialAsync(connection, entityToUpdate, propertiesToUpdate, transaction, commandTimeout);
-        }
-
-        /// <summary>
         /// Updates entity with specified values by key properties asynchronously using Task.
         /// </summary>
         /// <typeparam name="T">Type of entity</typeparam>
@@ -360,7 +310,7 @@ namespace Tuxedo.Contrib
         /// <param name="transaction">The transaction to run under, null (the default) if none</param>
         /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
         /// <returns>true if updated, false if not found</returns>
-        public static async Task<bool> UpdatePartialAsync<T>(this IDbConnection connection, object keyValues, object updateValues, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        public static async Task<bool> UpdateAsync<T>(this IDbConnection connection, object keyValues, object updateValues, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
             if (keyValues == null)
                 throw new ArgumentException("Cannot update with null key values", nameof(keyValues));
