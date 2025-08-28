@@ -5,20 +5,22 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Tuxedo.Contrib;
+using Tuxedo.DependencyInjection;
+using Tuxedo.Expressions;
 
 namespace Tuxedo.Specifications
 {
     public class SpecificationEvaluator<T> where T : class
     {
+        private static readonly ExpressionToSqlConverter _expressionConverter = new();
+
         public static async Task<IEnumerable<T>> GetQueryAsync(
             IDbConnection connection,
             ISpecification<T> specification,
             IDbTransaction? transaction = null,
             CancellationToken cancellationToken = default)
         {
-            var sql = BuildSqlQuery(specification);
-            var parameters = ExtractParameters(specification);
-            
+            var (sql, parameters) = BuildSqlQuery(specification, GetDialect(connection));
             return await connection.QueryAsync<T>(sql, parameters, transaction).ConfigureAwait(false);
         }
 
@@ -28,9 +30,7 @@ namespace Tuxedo.Specifications
             IDbTransaction? transaction = null,
             CancellationToken cancellationToken = default)
         {
-            var sql = BuildSqlQuery(specification, limit: 1);
-            var parameters = ExtractParameters(specification);
-            
+            var (sql, parameters) = BuildSqlQuery(specification, GetDialect(connection), limit: 1);
             return await connection.QueryFirstOrDefaultAsync<T>(sql, parameters, transaction).ConfigureAwait(false);
         }
 
@@ -40,19 +40,18 @@ namespace Tuxedo.Specifications
             IDbTransaction? transaction = null,
             CancellationToken cancellationToken = default)
         {
-            var sql = BuildCountQuery(specification);
-            var parameters = ExtractParameters(specification);
-            
+            var (sql, parameters) = BuildCountQuery(specification);
             return await connection.ExecuteScalarAsync<int>(sql, parameters, transaction).ConfigureAwait(false);
         }
 
-        private static string BuildSqlQuery(ISpecification<T> specification, int? limit = null)
+        private static (string sql, object? parameters) BuildSqlQuery(ISpecification<T> specification, TuxedoDialect dialect, int? limit = null)
         {
             var tableName = GetTableName();
             var sql = new StringBuilder($"SELECT * FROM {tableName}");
 
             // WHERE clause
-            var whereClause = BuildWhereClause(specification);
+            object? parameters = null;
+            var whereClause = BuildWhereClause(specification, out parameters);
             if (!string.IsNullOrEmpty(whereClause))
             {
                 sql.Append($" WHERE {whereClause}");
@@ -78,51 +77,64 @@ namespace Tuxedo.Specifications
             }
 
             // LIMIT and OFFSET
-            if (limit.HasValue)
+            if (limit.HasValue || specification.IsPagingEnabled)
             {
-                sql.Append($" LIMIT {limit.Value}");
-            }
-            else if (specification.IsPagingEnabled)
-            {
-                sql.Append($" LIMIT {specification.Take} OFFSET {specification.Skip}");
+                var skipCount = specification.Skip;
+                var takeCount = limit ?? specification.Take;
+                
+                var paginationSql = dialect switch
+                {
+                    TuxedoDialect.SqlServer => $" OFFSET {skipCount} ROWS FETCH NEXT {takeCount} ROWS ONLY",
+                    _ => $" LIMIT {takeCount} OFFSET {skipCount}"
+                };
+                
+                sql.Append(paginationSql);
             }
 
-            return sql.ToString();
+            return (sql.ToString(), parameters);
         }
 
-        private static string BuildCountQuery(ISpecification<T> specification)
+        private static (string sql, object? parameters) BuildCountQuery(ISpecification<T> specification)
         {
             var tableName = GetTableName();
             var sql = new StringBuilder($"SELECT COUNT(*) FROM {tableName}");
 
-            var whereClause = BuildWhereClause(specification);
+            object? parameters = null;
+            var whereClause = BuildWhereClause(specification, out parameters);
             if (!string.IsNullOrEmpty(whereClause))
             {
                 sql.Append($" WHERE {whereClause}");
             }
 
-            return sql.ToString();
+            return (sql.ToString(), parameters);
         }
 
-        private static string BuildWhereClause(ISpecification<T> specification)
+        private static string BuildWhereClause(ISpecification<T> specification, out object? parameters)
         {
-            // This is a simplified implementation
-            // In a production scenario, you'd need a proper expression visitor
-            // to convert the Expression<Func<T, bool>> to SQL
+            parameters = null;
+            
             if (specification.Criteria != null)
             {
-                var visitor = new SqlExpressionVisitor();
-                return visitor.Visit(specification.Criteria);
+                var whereClause = _expressionConverter.Convert(specification.Criteria);
+                parameters = _expressionConverter.GetParameters();
+                return whereClause;
             }
 
             return string.Empty;
         }
 
-        private static object? ExtractParameters(ISpecification<T> specification)
+        private static TuxedoDialect GetDialect(IDbConnection connection)
         {
-            // Extract parameter values from the specification criteria
-            // This would need to be implemented based on your expression parsing
-            return null;
+            var typeName = connection.GetType().Name.ToLowerInvariant();
+            
+            if (typeName.Contains("sqlite"))
+                return TuxedoDialect.Sqlite;
+            if (typeName.Contains("npgsql") || typeName.Contains("postgres"))
+                return TuxedoDialect.Postgres;
+            if (typeName.Contains("mysql"))
+                return TuxedoDialect.MySql;
+            
+            return TuxedoDialect.SqlServer;
         }
 
         private static string GetTableName()
@@ -144,13 +156,4 @@ namespace Tuxedo.Specifications
         }
     }
 
-    internal class SqlExpressionVisitor
-    {
-        public string Visit<T>(System.Linq.Expressions.Expression<System.Func<T, bool>> expression)
-        {
-            // Simplified implementation - returns a placeholder
-            // In production, implement a full expression visitor
-            return "1=1";
-        }
-    }
 }

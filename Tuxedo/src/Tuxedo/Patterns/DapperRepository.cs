@@ -4,23 +4,44 @@ using System.Data;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Tuxedo.Contrib;
+using Tuxedo.DependencyInjection;
+using Tuxedo.Expressions;
 
 namespace Tuxedo.Patterns
 {
-    public class DapperRepository<TEntity> : IRepository<TEntity> where TEntity : class
+    public class DapperRepository<TEntity> : IRepository<TEntity>, ITransactional where TEntity : class
     {
         protected readonly IDbConnection Connection;
-        protected readonly IDbTransaction? Transaction;
+        protected IDbTransaction? Transaction;
         private readonly string _tableName;
+        private readonly TuxedoDialect _dialect;
+        private readonly ExpressionToSqlConverter _expressionConverter;
 
-        public DapperRepository(IDbConnection connection, IDbTransaction? transaction = null)
+        public DapperRepository(IDbConnection connection, IDbTransaction? transaction = null, TuxedoDialect? dialect = null)
         {
             Connection = connection ?? throw new ArgumentNullException(nameof(connection));
             Transaction = transaction;
             _tableName = GetTableName();
+            _dialect = dialect ?? DetectDialect(connection);
+            _expressionConverter = new ExpressionToSqlConverter();
+        }
+
+        private TuxedoDialect DetectDialect(IDbConnection connection)
+        {
+            var typeName = connection.GetType().Name.ToLowerInvariant();
+            
+            if (typeName.Contains("sqlite"))
+                return TuxedoDialect.Sqlite;
+            if (typeName.Contains("npgsql") || typeName.Contains("postgres"))
+                return TuxedoDialect.Postgres;
+            if (typeName.Contains("mysql"))
+                return TuxedoDialect.MySql;
+            
+            return TuxedoDialect.SqlServer; // Default
         }
 
         public virtual async Task<TEntity?> GetByIdAsync(object id, CancellationToken cancellationToken = default)
@@ -36,28 +57,44 @@ namespace Tuxedo.Patterns
         public virtual async Task<IEnumerable<TEntity>> FindAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default)
         {
             var sql = BuildSelectQuery(predicate);
-            return await Connection.QueryAsync<TEntity>(sql, Transaction).ConfigureAwait(false);
+            var parameters = _expressionConverter.GetParameters();
+            return await Connection.QueryAsync<TEntity>(sql, parameters, Transaction).ConfigureAwait(false);
         }
 
         public virtual async Task<TEntity?> SingleOrDefaultAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default)
         {
             var sql = BuildSelectQuery(predicate);
-            return await Connection.QuerySingleOrDefaultAsync<TEntity>(sql, Transaction).ConfigureAwait(false);
+            var parameters = _expressionConverter.GetParameters();
+            return await Connection.QuerySingleOrDefaultAsync<TEntity>(sql, parameters, Transaction).ConfigureAwait(false);
         }
 
         public virtual async Task<bool> ExistsAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default)
         {
-            var sql = $"SELECT EXISTS({BuildSelectQuery(predicate, "1")})";
-            return await Connection.ExecuteScalarAsync<bool>(sql, Transaction).ConfigureAwait(false);
+            var sql = _dialect switch
+            {
+                TuxedoDialect.SqlServer => $"SELECT CASE WHEN EXISTS({BuildSelectQuery(predicate, "1")}) THEN 1 ELSE 0 END",
+                _ => $"SELECT EXISTS({BuildSelectQuery(predicate, "1")})"
+            };
+            var parameters = _expressionConverter.GetParameters();
+            return await Connection.ExecuteScalarAsync<bool>(sql, parameters, Transaction).ConfigureAwait(false);
         }
 
         public virtual async Task<int> CountAsync(Expression<Func<TEntity, bool>>? predicate = null, CancellationToken cancellationToken = default)
         {
-            var sql = predicate != null 
-                ? $"SELECT COUNT(*) FROM {_tableName} WHERE {GetWhereClause(predicate)}"
-                : $"SELECT COUNT(*) FROM {_tableName}";
+            string sql;
+            object? parameters = null;
             
-            return await Connection.ExecuteScalarAsync<int>(sql, Transaction).ConfigureAwait(false);
+            if (predicate != null)
+            {
+                sql = $"SELECT COUNT(*) FROM {_tableName} WHERE {GetWhereClause(predicate)}";
+                parameters = _expressionConverter.GetParameters();
+            }
+            else
+            {
+                sql = $"SELECT COUNT(*) FROM {_tableName}";
+            }
+            
+            return await Connection.ExecuteScalarAsync<int>(sql, parameters, Transaction).ConfigureAwait(false);
         }
 
         public virtual async Task<TEntity> AddAsync(TEntity entity, CancellationToken cancellationToken = default)
@@ -120,7 +157,8 @@ namespace Tuxedo.Patterns
             var totalCount = await CountAsync(predicate, cancellationToken).ConfigureAwait(false);
             
             var sql = BuildPagedQuery(pageIndex, pageSize, predicate, orderBy);
-            var items = await Connection.QueryAsync<TEntity>(sql, Transaction).ConfigureAwait(false);
+            var parameters = predicate != null ? _expressionConverter.GetParameters() : null;
+            var items = await Connection.QueryAsync<TEntity>(sql, parameters, Transaction).ConfigureAwait(false);
             
             return new PagedResult<TEntity>(items.ToList(), pageIndex, pageSize, totalCount);
         }
@@ -156,29 +194,32 @@ namespace Tuxedo.Patterns
             Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null)
         {
             var sql = BuildSelectQuery(predicate);
+            var offset = pageIndex * pageSize;
             
             // Add ORDER BY clause (required for pagination)
-            if (orderBy == null)
-            {
-                // Default to ordering by the first property (usually ID)
-                var firstProperty = typeof(TEntity).GetProperties().FirstOrDefault();
-                if (firstProperty != null)
-                {
-                    sql += $" ORDER BY {firstProperty.Name}";
-                }
-            }
+            // For simplicity, we'll use the first property for ordering
+            // In production, you might want to parse the orderBy expression
+            var firstProperty = typeof(TEntity).GetProperties().FirstOrDefault();
+            var orderByClause = firstProperty != null ? firstProperty.Name : "1";
             
-            // Add pagination
-            sql += $" LIMIT {pageSize} OFFSET {pageIndex * pageSize}";
+            sql += $" ORDER BY {orderByClause}";
+            
+            // Add pagination based on dialect
+            sql = _dialect switch
+            {
+                TuxedoDialect.SqlServer => sql + $" OFFSET {offset} ROWS FETCH NEXT {pageSize} ROWS ONLY",
+                TuxedoDialect.Postgres => sql + $" LIMIT {pageSize} OFFSET {offset}",
+                TuxedoDialect.MySql => sql + $" LIMIT {pageSize} OFFSET {offset}",
+                TuxedoDialect.Sqlite => sql + $" LIMIT {pageSize} OFFSET {offset}",
+                _ => sql + $" OFFSET {offset} ROWS FETCH NEXT {pageSize} ROWS ONLY" // Default to SQL Server syntax
+            };
             
             return sql;
         }
 
         protected virtual string GetWhereClause(Expression<Func<TEntity, bool>> predicate)
         {
-            // This is a simplified implementation
-            // In a real-world scenario, you'd want a proper expression visitor
-            return "1=1"; // Placeholder
+            return _expressionConverter.Convert(predicate);
         }
 
         protected virtual void SetIdProperty(TEntity entity, object id)
@@ -193,6 +234,11 @@ namespace Tuxedo.Patterns
                 var convertedId = Convert.ChangeType(id, idProperty.PropertyType);
                 idProperty.SetValue(entity, convertedId);
             }
+        }
+
+        void ITransactional.SetTransaction(IDbTransaction? transaction)
+        {
+            Transaction = transaction;
         }
     }
 }

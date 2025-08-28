@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Tuxedo.DependencyInjection;
 using Tuxedo.Contrib;
+using Tuxedo.Expressions;
 
 namespace Tuxedo.QueryBuilder
 {
@@ -26,6 +27,7 @@ namespace Tuxedo.QueryBuilder
         private readonly Dictionary<string, object> _parameters = new();
         private readonly TuxedoDialect _dialect;
         private int _parameterCounter = 0;
+        private readonly ExpressionToSqlConverter _expressionConverter = new();
 
         public QueryBuilder(TuxedoDialect dialect = TuxedoDialect.SqlServer)
         {
@@ -65,24 +67,27 @@ namespace Tuxedo.QueryBuilder
         public IQueryBuilder<T> InnerJoin<TJoin>(Expression<Func<T, TJoin, bool>> condition) where TJoin : class
         {
             var joinTable = GetTableName<TJoin>();
-            var joinCondition = ExpressionToSql(condition);
+            var joinCondition = ExpressionToJoinSql<TJoin>(condition);
             _joinClause.AppendLine($"INNER JOIN {joinTable} ON {joinCondition}");
+            MergeExpressionParameters();
             return this;
         }
 
         public IQueryBuilder<T> LeftJoin<TJoin>(Expression<Func<T, TJoin, bool>> condition) where TJoin : class
         {
             var joinTable = GetTableName<TJoin>();
-            var joinCondition = ExpressionToSql(condition);
+            var joinCondition = ExpressionToJoinSql<TJoin>(condition);
             _joinClause.AppendLine($"LEFT JOIN {joinTable} ON {joinCondition}");
+            MergeExpressionParameters();
             return this;
         }
 
         public IQueryBuilder<T> RightJoin<TJoin>(Expression<Func<T, TJoin, bool>> condition) where TJoin : class
         {
             var joinTable = GetTableName<TJoin>();
-            var joinCondition = ExpressionToSql(condition);
+            var joinCondition = ExpressionToJoinSql<TJoin>(condition);
             _joinClause.AppendLine($"RIGHT JOIN {joinTable} ON {joinCondition}");
+            MergeExpressionParameters();
             return this;
         }
 
@@ -90,6 +95,7 @@ namespace Tuxedo.QueryBuilder
         {
             var sql = ExpressionToSql(predicate);
             AppendWhereCondition(sql);
+            MergeExpressionParameters();
             return this;
         }
 
@@ -169,6 +175,7 @@ namespace Tuxedo.QueryBuilder
         {
             var sql = ExpressionToSql(predicate);
             _whereClause.Append($" AND {sql}");
+            MergeExpressionParameters();
             return this;
         }
 
@@ -176,6 +183,7 @@ namespace Tuxedo.QueryBuilder
         {
             var sql = ExpressionToSql(predicate);
             _whereClause.Append($" OR {sql}");
+            MergeExpressionParameters();
             return this;
         }
 
@@ -183,6 +191,7 @@ namespace Tuxedo.QueryBuilder
         {
             var sql = ExpressionToSql(predicate);
             AppendWhereCondition($"NOT ({sql})");
+            MergeExpressionParameters();
             return this;
         }
 
@@ -199,6 +208,7 @@ namespace Tuxedo.QueryBuilder
             var sql = ExpressionToSql(predicate);
             _havingClause.Clear();
             _havingClause.Append($"HAVING {sql}");
+            MergeExpressionParameters();
             return this;
         }
 
@@ -505,9 +515,59 @@ namespace Tuxedo.QueryBuilder
 
         private string ExpressionToSql(Expression expression)
         {
-            // This is a simplified implementation
-            // In production, you'd want a proper expression visitor
+            if (expression is LambdaExpression lambda)
+            {
+                return _expressionConverter.Convert((Expression<Func<T, bool>>)lambda);
+            }
             return "1=1";
+        }
+
+        private string ExpressionToJoinSql<TJoin>(Expression expression) where TJoin : class
+        {
+            // For join expressions, we need to handle two-parameter lambdas
+            if (expression is LambdaExpression lambda && lambda.Body is BinaryExpression binary)
+            {
+                // Simple implementation for equality joins
+                var left = GetMemberName(binary.Left);
+                var right = GetMemberName(binary.Right);
+                
+                if (!string.IsNullOrEmpty(left) && !string.IsNullOrEmpty(right))
+                {
+                    return $"{left} = {right}";
+                }
+            }
+            return "1=1";
+        }
+
+        private string GetMemberName(Expression expression)
+        {
+            if (expression is MemberExpression member)
+            {
+                // Check if it's accessing a parameter
+                if (member.Expression is ParameterExpression param)
+                {
+                    // For joins, we might need table aliases
+                    var tableName = param.Type == typeof(T) ? GetTableName<T>() : GetTableName(param.Type);
+                    return $"{tableName}.{member.Member.Name}";
+                }
+                return member.Member.Name;
+            }
+            return string.Empty;
+        }
+
+        private string GetTableName(Type type)
+        {
+            var tableAttr = type.GetCustomAttribute<TableAttribute>();
+            return tableAttr?.Name ?? type.Name + "s";
+        }
+
+        private void MergeExpressionParameters()
+        {
+            var exprParams = _expressionConverter.GetParameters();
+            foreach (var kvp in exprParams)
+            {
+                _parameters[kvp.Key] = kvp.Value;
+            }
         }
 
         private string GetNextParameterName()
