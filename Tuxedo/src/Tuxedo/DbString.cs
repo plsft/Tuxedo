@@ -15,7 +15,7 @@ namespace Tuxedo
 
         /// <summary>
         /// A value to set the default value of strings
-        /// going through Dapper. Default is 4000, any value larger than this
+        /// going through Tuxedo. Default is 4000, any value larger than this
         /// field will not have the default value applied.
         /// </summary>
         public const int DefaultLength = 4000;
@@ -60,8 +60,8 @@ namespace Tuxedo
         /// Gets a string representation of this DbString.
         /// </summary>
         public override string ToString() => Value is null
-            ? $"Dapper.DbString (Value: null, Length: {Length}, IsAnsi: {IsAnsi}, IsFixedLength: {IsFixedLength})"
-            : $"Dapper.DbString (Value: '{Value}', Length: {Length}, IsAnsi: {IsAnsi}, IsFixedLength: {IsFixedLength})";
+            ? $"Tuxedo.DbString (Value: null, Length: {Length}, IsAnsi: {IsAnsi}, IsFixedLength: {IsFixedLength})"
+            : $"Tuxedo.DbString (Value: '{Value}', Length: {Length}, IsAnsi: {IsAnsi}, IsFixedLength: {IsFixedLength})";
 
         /// <summary>
         /// Add the parameter to the command... internal use only

@@ -25,7 +25,7 @@ namespace Tuxedo
         /// <remarks>Note: each row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
         public static Task<IEnumerable<dynamic>> QueryAsync(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, int? commandTimeout = null, CommandType? commandType = null) =>
-            QueryAsync<dynamic>(cnn, typeof(DapperRow), new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.Buffered, default));
+            QueryAsync<dynamic>(cnn, typeof(TuxedoRow), new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.Buffered, default));
 
         /// <summary>
         /// Execute a query asynchronously using Task.
@@ -34,7 +34,7 @@ namespace Tuxedo
         /// <param name="command">The command used to query on this connection.</param>
         /// <remarks>Note: each row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
         public static Task<IEnumerable<dynamic>> QueryAsync(this IDbConnection cnn, CommandDefinition command) =>
-            QueryAsync<dynamic>(cnn, typeof(DapperRow), command);
+            QueryAsync<dynamic>(cnn, typeof(TuxedoRow), command);
 
         /// <summary>
         /// Execute a single-row query asynchronously using Task.
@@ -43,7 +43,7 @@ namespace Tuxedo
         /// <param name="command">The command used to query on this connection.</param>
         /// <remarks>Note: the row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
         public static Task<dynamic> QueryFirstAsync(this IDbConnection cnn, CommandDefinition command) =>
-            QueryRowAsync<dynamic>(cnn, Row.First, typeof(DapperRow), command);
+            QueryRowAsync<dynamic>(cnn, Row.First, typeof(TuxedoRow), command);
 
         /// <summary>
         /// Execute a single-row query asynchronously using Task.
@@ -52,7 +52,7 @@ namespace Tuxedo
         /// <param name="command">The command used to query on this connection.</param>
         /// <remarks>Note: the row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
         public static Task<dynamic?> QueryFirstOrDefaultAsync(this IDbConnection cnn, CommandDefinition command) =>
-            QueryRowAsync<dynamic?>(cnn, Row.FirstOrDefault, typeof(DapperRow), command);
+            QueryRowAsync<dynamic?>(cnn, Row.FirstOrDefault, typeof(TuxedoRow), command);
 
         /// <summary>
         /// Execute a single-row query asynchronously using Task.
@@ -61,7 +61,7 @@ namespace Tuxedo
         /// <param name="command">The command used to query on this connection.</param>
         /// <remarks>Note: the row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
         public static Task<dynamic> QuerySingleAsync(this IDbConnection cnn, CommandDefinition command) =>
-            QueryRowAsync<dynamic>(cnn, Row.Single, typeof(DapperRow), command);
+            QueryRowAsync<dynamic>(cnn, Row.Single, typeof(TuxedoRow), command);
 
         /// <summary>
         /// Execute a single-row query asynchronously using Task.
@@ -70,7 +70,7 @@ namespace Tuxedo
         /// <param name="command">The command used to query on this connection.</param>
         /// <remarks>Note: the row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
         public static Task<dynamic?> QuerySingleOrDefaultAsync(this IDbConnection cnn, CommandDefinition command) =>
-            QueryRowAsync<dynamic?>(cnn, Row.SingleOrDefault, typeof(DapperRow), command);
+            QueryRowAsync<dynamic?>(cnn, Row.SingleOrDefault, typeof(TuxedoRow), command);
 
         /// <summary>
         /// Execute a query asynchronously using Task.
@@ -157,7 +157,7 @@ namespace Tuxedo
         /// <param name="commandType">The type of command to execute.</param>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
         public static Task<dynamic> QueryFirstAsync(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, int? commandTimeout = null, CommandType? commandType = null) =>
-            QueryRowAsync<dynamic>(cnn, Row.First, typeof(DapperRow), new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None, default));
+            QueryRowAsync<dynamic>(cnn, Row.First, typeof(TuxedoRow), new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None, default));
 
         /// <summary>
         /// Execute a single-row query asynchronously using Task.
@@ -170,7 +170,7 @@ namespace Tuxedo
         /// <param name="commandType">The type of command to execute.</param>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
         public static Task<dynamic?> QueryFirstOrDefaultAsync(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, int? commandTimeout = null, CommandType? commandType = null) =>
-            QueryRowAsync<dynamic?>(cnn, Row.FirstOrDefault, typeof(DapperRow), new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None, default));
+            QueryRowAsync<dynamic?>(cnn, Row.FirstOrDefault, typeof(TuxedoRow), new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None, default));
 
         /// <summary>
         /// Execute a single-row query asynchronously using Task.
@@ -183,7 +183,7 @@ namespace Tuxedo
         /// <param name="commandType">The type of command to execute.</param>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
         public static Task<dynamic> QuerySingleAsync(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, int? commandTimeout = null, CommandType? commandType = null) =>
-            QueryRowAsync<dynamic>(cnn, Row.Single, typeof(DapperRow), new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None, default));
+            QueryRowAsync<dynamic>(cnn, Row.Single, typeof(TuxedoRow), new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None, default));
 
         /// <summary>
         /// Execute a single-row query asynchronously using Task.
@@ -196,7 +196,7 @@ namespace Tuxedo
         /// <param name="commandType">The type of command to execute.</param>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
         public static Task<dynamic?> QuerySingleOrDefaultAsync(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, int? commandTimeout = null, CommandType? commandType = null) =>
-            QueryRowAsync<dynamic?>(cnn, Row.SingleOrDefault, typeof(DapperRow), new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None, default));
+            QueryRowAsync<dynamic?>(cnn, Row.SingleOrDefault, typeof(TuxedoRow), new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None, default));
 
         /// <summary>
         /// Execute a query asynchronously using Task.

@@ -96,7 +96,7 @@ public class UpdatePartialTests
         product.Price = 25.50m;
         product.Name = "Should Not Update";
 
-        var result = db.Update(product, null, null, "Price");
+        var result = db.Update(product, null, null, new[] { "Price" });
 
         Assert.True(result);
 
@@ -234,7 +234,7 @@ public class UpdatePartialTests
     {
         using var db = CreateSqliteConnection();
 
-        Assert.Throws<ArgumentException>(() => 
+        Assert.Throws<ArgumentNullException>(() => 
             db.Update<Product>(null!, null, null, new[] { "Name" })
         );
     }

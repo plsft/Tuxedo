@@ -11,3 +11,6 @@ C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\obj\Debug\net8.0\Tuxedo.dll
 C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\obj\Debug\net8.0\refint\Tuxedo.dll
 C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\obj\Debug\net8.0\Tuxedo.pdb
 C:\Work\Experimental\Tuxedo\Tuxedo\src\Tuxedo\obj\Debug\net8.0\ref\Tuxedo.dll
+C:\Work\Experimental\Tuxedo\temp_build\Tuxedo.deps.json
+C:\Work\Experimental\Tuxedo\temp_build\Tuxedo.dll
+C:\Work\Experimental\Tuxedo\temp_build\Tuxedo.pdb

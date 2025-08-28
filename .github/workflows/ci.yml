@@ -1,48 +1,77 @@
-﻿name: CI
+name: CI
 
 on:
-  push:
-    branches: [ main ]
-    tags: [ "v*" ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
 
 jobs:
-  build:
-    runs-on: windows-latest
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_NOLOGO: 1
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
-            6.0.x
-            8.0.x
-      - name: Restore
-        run: dotnet restore ./Tuxedo.sln
-      - name: Build
-        run: dotnet build ./Tuxedo.sln -c Release --no-restore
-      - name: Test
-        run: dotnet test ./Tuxedo.sln -c Release --no-build --logger:"trx;LogFileName=test.trx"
+            8.x
 
-  publish:
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
         with:
-          dotnet-version: 6.0.x
-      - name: Pack
-        run: dotnet pack ./Tuxedo/src/Tuxedo/Tuxedo.csproj -c Release -o ./artifacts -p:RepositoryUrl=${{ github.server_url }}/${{ github.repository }} --no-build
-      - name: Publish to GitHub Packages
-        env:
-          NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: dotnet nuget push ./artifacts/*.nupkg --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
-      - name: Publish to NuGet.org (optional)
-        if: env.NUGET_API_KEY != ''
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        run: dotnet nuget push ./artifacts/*.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }} --skip-duplicate
+          path: |
+            ~/.nuget/packages
+            ~\AppData\Local\NuGet\v3-cache
+            C:\\Users\\runneradmin\\AppData\\Local\\NuGet\\v3-cache
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test (SQLite + DI; provider suites auto-skip) with coverage
+        run: |
+          dotnet test Tuxedo/tests/Tuxedo.Tests/Tuxedo.Tests.csproj \
+            --configuration Release \
+            --no-build \
+            --logger "trx;LogFileName=test-results.trx" \
+            --collect:"XPlat Code Coverage"
+        continue-on-error: false
+
+      - name: Install ReportGenerator
+        run: dotnet tool install -g dotnet-reportgenerator-globaltool
+
+      - name: Generate coverage report
+        shell: bash
+        run: |
+          REPORT_PATH=$(git ls-files -z | xargs -0 -I{} bash -lc 'echo {}' >/dev/null; echo "Tuxedo/tests/Tuxedo.Tests/TestResults")
+          reportgenerator \
+            -reports:"Tuxedo/tests/Tuxedo.Tests/TestResults/**/coverage.cobertura.xml" \
+            -targetdir:"coverage-report" \
+            -reporttypes:"HtmlInline_AzurePipelines;Cobertura"
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}
+          path: Tuxedo/tests/Tuxedo.Tests/TestResults
+
+      - name: Upload Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ matrix.os }}
+          path: coverage-report

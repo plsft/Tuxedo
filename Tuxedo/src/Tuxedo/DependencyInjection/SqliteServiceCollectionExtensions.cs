@@ -13,54 +13,6 @@ namespace Tuxedo.DependencyInjection
     /// </summary>
     public static class SqliteServiceCollectionExtensions
     {
-        /// <summary>
-        /// Adds Tuxedo with SQLite support using a connection string
-        /// </summary>
-        public static IServiceCollection AddTuxedoSqlite(
-            this IServiceCollection services,
-            string connectionString,
-            ServiceLifetime lifetime = ServiceLifetime.Scoped)
-        {
-            return services.AddTuxedoSqlite(
-                connectionString,
-                configure: null,
-                lifetime);
-        }
-
-        /// <summary>
-        /// Adds Tuxedo with SQLite support using a connection string and configuration
-        /// </summary>
-        public static IServiceCollection AddTuxedoSqlite(
-            this IServiceCollection services,
-            string connectionString,
-            Action<SqliteConnection>? configure,
-            ServiceLifetime lifetime = ServiceLifetime.Scoped)
-        {
-            if (string.IsNullOrWhiteSpace(connectionString))
-            {
-                throw new ArgumentException("Connection string cannot be null or whitespace.", nameof(connectionString));
-            }
-
-            services.AddTuxedo(options =>
-            {
-                options.ConnectionFactory = _ =>
-                {
-                    var connection = new SqliteConnection(connectionString);
-                    configure?.Invoke(connection);
-                    return connection;
-                };
-                options.Dialect = TuxedoDialect.Sqlite;
-                options.OpenOnResolve = true;
-            });
-
-            // Register SQLite-specific connection
-            services.TryAdd(new ServiceDescriptor(
-                typeof(SqliteConnection),
-                provider => (SqliteConnection)provider.GetRequiredService<IDbConnection>(),
-                lifetime));
-
-            return services;
-        }
 
         /// <summary>
         /// Adds Tuxedo with SQLite support using configuration
@@ -118,7 +70,8 @@ namespace Tuxedo.DependencyInjection
                 ? "Data Source=:memory:" 
                 : $"Data Source={databaseName};Mode=Memory;Cache=Shared";
 
-            return services.AddTuxedoSqlite(
+            return ServiceCollectionExtensions.AddTuxedoSqlite(
+                services,
                 connectionString,
                 connection =>
                 {
@@ -127,8 +80,7 @@ namespace Tuxedo.DependencyInjection
                     {
                         connection.Open();
                     }
-                },
-                lifetime);
+                });
         }
 
         /// <summary>
@@ -154,7 +106,7 @@ namespace Tuxedo.DependencyInjection
                 Pooling = true
             };
 
-            return services.AddTuxedoSqlite(builder.ConnectionString, lifetime: lifetime);
+            return ServiceCollectionExtensions.AddTuxedoSqlite(services, builder.ConnectionString, lifetime);
         }
     }
 

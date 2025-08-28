@@ -33,7 +33,7 @@ namespace Tuxedo.Tests.DependencyInjection
                 .Build();
 
             var services = new ServiceCollection();
-            services.AddTuxedoSqlServerWithOptions(configuration);
+            TuxedoOptionsExtensions.AddTuxedoSqlServerWithOptions(services, configuration);
             
             var provider = services.BuildServiceProvider();
             var connection = provider.GetService<IDbConnection>();
@@ -58,7 +58,7 @@ namespace Tuxedo.Tests.DependencyInjection
                 .Build();
 
             var services = new ServiceCollection();
-            services.AddTuxedoSqlServerWithOptions(configuration);
+            TuxedoOptionsExtensions.AddTuxedoSqlServerWithOptions(services, configuration);
             
             var provider = services.BuildServiceProvider();
             
@@ -80,7 +80,7 @@ namespace Tuxedo.Tests.DependencyInjection
                 .Build();
 
             var services = new ServiceCollection();
-            services.AddTuxedoPostgresWithOptions(configuration);
+            TuxedoOptionsExtensions.AddTuxedoPostgresWithOptions(services, configuration);
             
             var provider = services.BuildServiceProvider();
             var connection = provider.GetService<IDbConnection>();
@@ -107,7 +107,7 @@ namespace Tuxedo.Tests.DependencyInjection
                 .Build();
 
             var services = new ServiceCollection();
-            services.AddTuxedoPostgresWithOptions(configuration, "CustomPostgres");
+            TuxedoOptionsExtensions.AddTuxedoPostgresWithOptions(services, configuration, "CustomPostgres");
             
             var provider = services.BuildServiceProvider();
             var connection = provider.GetService<IDbConnection>();
@@ -134,7 +134,7 @@ namespace Tuxedo.Tests.DependencyInjection
                 .Build();
 
             var services = new ServiceCollection();
-            services.AddTuxedoMySqlWithOptions(configuration);
+            TuxedoOptionsExtensions.AddTuxedoMySqlWithOptions(services, configuration);
             
             var provider = services.BuildServiceProvider();
             var connection = provider.GetService<IDbConnection>();
@@ -161,7 +161,7 @@ namespace Tuxedo.Tests.DependencyInjection
                 .Build();
 
             var services = new ServiceCollection();
-            services.AddTuxedoMySqlWithOptions(configuration);
+            TuxedoOptionsExtensions.AddTuxedoMySqlWithOptions(services, configuration);
             
             var provider = services.BuildServiceProvider();
             
@@ -174,7 +174,7 @@ namespace Tuxedo.Tests.DependencyInjection
             var configuration = new ConfigurationBuilder().Build();
             
             Assert.Throws<ArgumentNullException>(() =>
-                ((IServiceCollection)null!).AddTuxedoSqlServerWithOptions(configuration));
+                TuxedoOptionsExtensions.AddTuxedoSqlServerWithOptions((IServiceCollection)null!, configuration));
         }
 
         [Fact]
@@ -183,7 +183,7 @@ namespace Tuxedo.Tests.DependencyInjection
             var services = new ServiceCollection();
             
             Assert.Throws<ArgumentNullException>(() =>
-                services.AddTuxedoSqlServerWithOptions(null!));
+                TuxedoOptionsExtensions.AddTuxedoSqlServerWithOptions(services, null!));
         }
 
         [Fact]
@@ -192,7 +192,7 @@ namespace Tuxedo.Tests.DependencyInjection
             var configuration = new ConfigurationBuilder().Build();
             
             Assert.Throws<ArgumentNullException>(() =>
-                ((IServiceCollection)null!).AddTuxedoPostgresWithOptions(configuration));
+                TuxedoOptionsExtensions.AddTuxedoPostgresWithOptions((IServiceCollection)null!, configuration));
         }
 
         [Fact]
@@ -201,7 +201,7 @@ namespace Tuxedo.Tests.DependencyInjection
             var services = new ServiceCollection();
             
             Assert.Throws<ArgumentNullException>(() =>
-                services.AddTuxedoPostgresWithOptions(null!));
+                TuxedoOptionsExtensions.AddTuxedoPostgresWithOptions(services, null!));
         }
 
         [Fact]
@@ -210,7 +210,7 @@ namespace Tuxedo.Tests.DependencyInjection
             var configuration = new ConfigurationBuilder().Build();
             
             Assert.Throws<ArgumentNullException>(() =>
-                ((IServiceCollection)null!).AddTuxedoMySqlWithOptions(configuration));
+                TuxedoOptionsExtensions.AddTuxedoMySqlWithOptions((IServiceCollection)null!, configuration));
         }
 
         [Fact]
@@ -219,7 +219,7 @@ namespace Tuxedo.Tests.DependencyInjection
             var services = new ServiceCollection();
             
             Assert.Throws<ArgumentNullException>(() =>
-                services.AddTuxedoMySqlWithOptions(null!));
+                TuxedoOptionsExtensions.AddTuxedoMySqlWithOptions(services, null!));
         }
 
         [Fact]

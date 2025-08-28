@@ -62,7 +62,7 @@ namespace Tuxedo
             var dbReader = GetDbDataReader(reader);
             if (dbReader.Read())
             {
-                var deser = GetDapperRowDeserializer(dbReader, 0, -1, false);
+                var deser = GetTuxedoRowDeserializer(dbReader, 0, -1, false);
                 do
                 {
                     yield return deser(dbReader);

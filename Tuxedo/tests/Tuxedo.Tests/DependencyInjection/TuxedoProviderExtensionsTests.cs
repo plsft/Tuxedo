@@ -25,7 +25,7 @@ namespace Tuxedo.Tests.DependencyInjection
         {
             var services = new ServiceCollection();
             
-            services.AddTuxedoSqlServer(TestSqlServerConnectionString);
+            TuxedoProviderExtensions.AddTuxedoSqlServer(services, TestSqlServerConnectionString);
             
             var provider = services.BuildServiceProvider();
             var connection = provider.GetService<IDbConnection>();
@@ -41,7 +41,8 @@ namespace Tuxedo.Tests.DependencyInjection
             var services = new ServiceCollection();
             var configurationApplied = false;
             
-            services.AddTuxedoSqlServer(
+            TuxedoProviderExtensions.AddTuxedoSqlServer(
+                services,
                 TestSqlServerConnectionString,
                 conn => 
                 {
@@ -62,7 +63,7 @@ namespace Tuxedo.Tests.DependencyInjection
             var services = new ServiceCollection();
             services.AddSingleton(new ConnectionStringProvider { ConnectionString = TestSqlServerConnectionString });
             
-            services.AddTuxedoSqlServer(provider => 
+            TuxedoProviderExtensions.AddTuxedoSqlServer(services, provider => 
                 provider.GetRequiredService<ConnectionStringProvider>().ConnectionString);
             
             var provider = services.BuildServiceProvider();
@@ -78,7 +79,7 @@ namespace Tuxedo.Tests.DependencyInjection
         {
             var services = new ServiceCollection();
             
-            services.AddTuxedoSqlServer(TestSqlServerConnectionString, ServiceLifetime.Scoped);
+            TuxedoProviderExtensions.AddTuxedoSqlServer(services, TestSqlServerConnectionString, ServiceLifetime.Scoped);
             
             var provider = services.BuildServiceProvider();
             
@@ -104,7 +105,7 @@ namespace Tuxedo.Tests.DependencyInjection
         {
             var services = new ServiceCollection();
             
-            services.AddTuxedoPostgres(TestPostgresConnectionString);
+            TuxedoProviderExtensions.AddTuxedoPostgres(services, TestPostgresConnectionString);
             
             var provider = services.BuildServiceProvider();
             var connection = provider.GetService<IDbConnection>();
@@ -120,7 +121,8 @@ namespace Tuxedo.Tests.DependencyInjection
             var services = new ServiceCollection();
             var configurationApplied = false;
             
-            services.AddTuxedoPostgres(
+            TuxedoProviderExtensions.AddTuxedoPostgres(
+                services,
                 TestPostgresConnectionString,
                 conn => 
                 {
@@ -141,7 +143,7 @@ namespace Tuxedo.Tests.DependencyInjection
             var services = new ServiceCollection();
             services.AddSingleton(new ConnectionStringProvider { ConnectionString = TestPostgresConnectionString });
             
-            services.AddTuxedoPostgres(provider => 
+            TuxedoProviderExtensions.AddTuxedoPostgres(services, provider => 
                 provider.GetRequiredService<ConnectionStringProvider>().ConnectionString);
             
             var provider = services.BuildServiceProvider();
@@ -157,7 +159,7 @@ namespace Tuxedo.Tests.DependencyInjection
         {
             var services = new ServiceCollection();
             
-            services.AddTuxedoMySql(TestMySqlConnectionString);
+            TuxedoProviderExtensions.AddTuxedoMySql(services, TestMySqlConnectionString);
             
             var provider = services.BuildServiceProvider();
             var connection = provider.GetService<IDbConnection>();
@@ -173,7 +175,8 @@ namespace Tuxedo.Tests.DependencyInjection
             var services = new ServiceCollection();
             var configurationApplied = false;
             
-            services.AddTuxedoMySql(
+            TuxedoProviderExtensions.AddTuxedoMySql(
+                services,
                 TestMySqlConnectionString,
                 conn => 
                 {
@@ -194,7 +197,7 @@ namespace Tuxedo.Tests.DependencyInjection
             var services = new ServiceCollection();
             services.AddSingleton(new ConnectionStringProvider { ConnectionString = TestMySqlConnectionString });
             
-            services.AddTuxedoMySql(provider => 
+            TuxedoProviderExtensions.AddTuxedoMySql(services, provider => 
                 provider.GetRequiredService<ConnectionStringProvider>().ConnectionString);
             
             var provider = services.BuildServiceProvider();
@@ -209,7 +212,7 @@ namespace Tuxedo.Tests.DependencyInjection
         public void AddTuxedoSqlServer_ThrowsArgumentNullException_WhenServicesIsNull()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                ((IServiceCollection)null!).AddTuxedoSqlServer(TestSqlServerConnectionString));
+                TuxedoProviderExtensions.AddTuxedoSqlServer(null!, TestSqlServerConnectionString));
         }
 
         [Fact]
@@ -218,14 +221,14 @@ namespace Tuxedo.Tests.DependencyInjection
             var services = new ServiceCollection();
             
             Assert.Throws<ArgumentException>(() =>
-                services.AddTuxedoSqlServer(""));
+                TuxedoProviderExtensions.AddTuxedoSqlServer(services, ""));
         }
 
         [Fact]
         public void AddTuxedoPostgres_ThrowsArgumentNullException_WhenServicesIsNull()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                ((IServiceCollection)null!).AddTuxedoPostgres(TestPostgresConnectionString));
+                TuxedoProviderExtensions.AddTuxedoPostgres((IServiceCollection)null!, TestPostgresConnectionString));
         }
 
         [Fact]
@@ -234,14 +237,14 @@ namespace Tuxedo.Tests.DependencyInjection
             var services = new ServiceCollection();
             
             Assert.Throws<ArgumentException>(() =>
-                services.AddTuxedoPostgres(""));
+                TuxedoProviderExtensions.AddTuxedoPostgres(services, ""));
         }
 
         [Fact]
         public void AddTuxedoMySql_ThrowsArgumentNullException_WhenServicesIsNull()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                ((IServiceCollection)null!).AddTuxedoMySql(TestMySqlConnectionString));
+                TuxedoProviderExtensions.AddTuxedoMySql((IServiceCollection)null!, TestMySqlConnectionString));
         }
 
         [Fact]
@@ -250,7 +253,7 @@ namespace Tuxedo.Tests.DependencyInjection
             var services = new ServiceCollection();
             
             Assert.Throws<ArgumentException>(() =>
-                services.AddTuxedoMySql(""));
+                TuxedoProviderExtensions.AddTuxedoMySql(services, ""));
         }
 
         private class ConnectionStringProvider

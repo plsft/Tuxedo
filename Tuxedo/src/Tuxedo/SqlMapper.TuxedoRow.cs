@@ -7,14 +7,14 @@ namespace Tuxedo
 {
     public static partial class SqlMapper
     {
-        private sealed partial class DapperRow
+        private sealed partial class TuxedoRow
             : IDictionary<string, object?>
             , IReadOnlyDictionary<string, object?>
         {
-            private readonly DapperTable table;
+            private readonly TuxedoTable table;
             private object?[] values;
 
-            public DapperRow(DapperTable table, object?[] values)
+            public TuxedoRow(TuxedoTable table, object?[] values)
             {
                 this.table = table ?? throw new ArgumentNullException(nameof(table));
                 this.values = values ?? throw new ArgumentNullException(nameof(values));
@@ -61,7 +61,7 @@ namespace Tuxedo
 
             public override string ToString()
             {
-                var sb = GetStringBuilder().Append("{DapperRow");
+                var sb = GetStringBuilder().Append("{TuxedoRow");
                 foreach (var kv in this)
                 {
                     var value = kv.Value;

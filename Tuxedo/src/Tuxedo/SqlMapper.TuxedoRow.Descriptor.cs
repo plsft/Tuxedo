@@ -6,43 +6,43 @@ namespace Tuxedo
 {
     public static partial class SqlMapper
     {
-        [TypeDescriptionProvider(typeof(DapperRowTypeDescriptionProvider))]
-        private sealed partial class DapperRow
+        [TypeDescriptionProvider(typeof(TuxedoRowTypeDescriptionProvider))]
+        private sealed partial class TuxedoRow
         {
-            private sealed class DapperRowTypeDescriptionProvider : TypeDescriptionProvider
+            private sealed class TuxedoRowTypeDescriptionProvider : TypeDescriptionProvider
             {
                 public override ICustomTypeDescriptor GetExtendedTypeDescriptor(object instance)
-                    => new DapperRowTypeDescriptor(instance);
+                    => new TuxedoRowTypeDescriptor(instance);
                 public override ICustomTypeDescriptor GetTypeDescriptor(Type objectType, object? instance)
-                    => new DapperRowTypeDescriptor(instance!);
+                    => new TuxedoRowTypeDescriptor(instance!);
             }
 
             //// in theory we could implement this for zero-length results to bind; would require
             //// additional changes, though, to capture a table even when no rows - so not currently provided
-            //internal sealed class DapperRowList : List<DapperRow>, ITypedList
+            //internal sealed class TuxedoRowList : List<TuxedoRow>, ITypedList
             //{
-            //    private readonly DapperTable _table;
-            //    public DapperRowList(DapperTable table) { _table = table; }
+            //    private readonly TuxedoTable _table;
+            //    public TuxedoRowList(TuxedoTable table) { _table = table; }
             //    PropertyDescriptorCollection ITypedList.GetItemProperties(PropertyDescriptor[] listAccessors)
             //    {
             //        if (listAccessors is not null && listAccessors.Length != 0) return PropertyDescriptorCollection.Empty;
 
-            //        return DapperRowTypeDescriptor.GetProperties(_table);
+            //        return TuxedoRowTypeDescriptor.GetProperties(_table);
             //    }
 
             //    string ITypedList.GetListName(PropertyDescriptor[] listAccessors) => null;
             //}
 
-            private sealed class DapperRowTypeDescriptor : ICustomTypeDescriptor
+            private sealed class TuxedoRowTypeDescriptor : ICustomTypeDescriptor
             {
-                private readonly DapperRow _row;
-                public DapperRowTypeDescriptor(object instance)
-                    => _row = (DapperRow)instance;
+                private readonly TuxedoRow _row;
+                public TuxedoRowTypeDescriptor(object instance)
+                    => _row = (TuxedoRow)instance;
 
                 AttributeCollection ICustomTypeDescriptor.GetAttributes()
                     => AttributeCollection.Empty;
 
-                string ICustomTypeDescriptor.GetClassName() => typeof(DapperRow).FullName!;
+                string ICustomTypeDescriptor.GetClassName() => typeof(TuxedoRow).FullName!;
 
                 string ICustomTypeDescriptor.GetComponentName() => null!;
 
@@ -59,8 +59,8 @@ namespace Tuxedo
 
                 EventDescriptorCollection ICustomTypeDescriptor.GetEvents(Attribute[]? attributes) => EventDescriptorCollection.Empty;
 
-                internal static PropertyDescriptorCollection GetProperties(DapperRow row) => GetProperties(row?.table, row);
-                internal static PropertyDescriptorCollection GetProperties(DapperTable? table, IDictionary<string,object?>? row = null)
+                internal static PropertyDescriptorCollection GetProperties(TuxedoRow row) => GetProperties(row?.table, row);
+                internal static PropertyDescriptorCollection GetProperties(TuxedoTable? table, IDictionary<string,object?>? row = null)
                 {
                     string[]? names = table?.FieldNames;
                     if (names is null || names.Length == 0) return PropertyDescriptorCollection.Empty;
@@ -90,15 +90,15 @@ namespace Tuxedo
                     _index = index;
                 }
                 public override bool CanResetValue(object component) => true;
-                public override void ResetValue(object component) => ((DapperRow)component).Remove(_index);
+                public override void ResetValue(object component) => ((TuxedoRow)component).Remove(_index);
                 public override bool IsReadOnly => false;
-                public override bool ShouldSerializeValue(object component) => ((DapperRow)component).TryGetValue(_index, out _);
-                public override Type ComponentType => typeof(DapperRow);
+                public override bool ShouldSerializeValue(object component) => ((TuxedoRow)component).TryGetValue(_index, out _);
+                public override Type ComponentType => typeof(TuxedoRow);
                 public override Type PropertyType => _type;
                 public override object GetValue(object? component)
-                    => ((DapperRow)component!).TryGetValue(_index, out var val) ? (val ?? DBNull.Value): DBNull.Value;
+                    => ((TuxedoRow)component!).TryGetValue(_index, out var val) ? (val ?? DBNull.Value): DBNull.Value;
                 public override void SetValue(object? component, object? value)
-                    => ((DapperRow)component!).SetValue(_index, value is DBNull ? null : value);
+                    => ((TuxedoRow)component!).SetValue(_index, value is DBNull ? null : value);
             }
         }
     }

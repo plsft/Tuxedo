@@ -173,7 +173,7 @@ namespace Tuxedo.DependencyInjection
             this IServiceCollection services,
             TuxedoDialect? dialect = null)
         {
-            services.AddScoped(typeof(IRepository<>), typeof(DapperRepository<>));
+            services.AddScoped(typeof(IRepository<>), typeof(TuxedoRepository<>));
             
             // Register dialect for repositories via options
             if (dialect.HasValue)

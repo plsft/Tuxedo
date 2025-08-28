@@ -36,7 +36,7 @@ namespace Tuxedo.Patterns
             
             if (!_repositories.ContainsKey(type))
             {
-                var repository = new DapperRepository<TEntity>(_connection, _transaction);
+                var repository = new TuxedoRepository<TEntity>(_connection, _transaction);
                 _repositories.Add(type, repository);
             }
             
@@ -109,7 +109,7 @@ namespace Tuxedo.Patterns
 
         public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            // In a pure Dapper implementation, changes are immediate
+            // In a pure Tuxedo implementation, changes are immediate
             // This method is here for compatibility with the pattern
             // You could track changes and batch them here if needed
             

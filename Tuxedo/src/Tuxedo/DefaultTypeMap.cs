@@ -6,7 +6,7 @@ using System.Reflection;
 namespace Tuxedo
 {
     /// <summary>
-    /// Represents default type mapping strategy used by Dapper
+    /// Represents default type mapping strategy used by Tuxedo
     /// </summary>
     public sealed class DefaultTypeMap : SqlMapper.ITypeMap
     {

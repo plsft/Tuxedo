@@ -23,7 +23,8 @@ namespace Tuxedo.QueryBuilder
         private readonly StringBuilder _groupByClause = new();
         private readonly StringBuilder _havingClause = new();
         private readonly StringBuilder _orderByClause = new();
-        private string? _skipTakeClause;
+        private int? _skip;
+        private int? _take;
         private readonly Dictionary<string, object> _parameters = new();
         private readonly TuxedoDialect _dialect;
         private int _parameterCounter = 0;
@@ -244,19 +245,20 @@ namespace Tuxedo.QueryBuilder
 
         public IQueryBuilder<T> Skip(int count)
         {
-            UpdatePagination(count, null);
+            _skip = count;
             return this;
         }
 
         public IQueryBuilder<T> Take(int count)
         {
-            UpdatePagination(null, count);
+            _take = count;
             return this;
         }
 
         public IQueryBuilder<T> Page(int pageIndex, int pageSize)
         {
-            UpdatePagination(pageIndex * pageSize, pageSize);
+            _skip = pageIndex * pageSize;
+            _take = pageSize;
             return this;
         }
 
@@ -300,6 +302,14 @@ namespace Tuxedo.QueryBuilder
         public IQueryBuilder<T> Raw(string sql, object? parameters = null)
         {
             _selectClause.Clear();
+            _fromClause.Clear();
+            _whereClause.Clear();
+            _joinClause.Clear();
+            _groupByClause.Clear();
+            _havingClause.Clear();
+            _orderByClause.Clear();
+            _skip = null;
+            _take = null;
             _selectClause.Append(sql);
             if (parameters != null)
             {
@@ -322,8 +332,11 @@ namespace Tuxedo.QueryBuilder
                 sql.Append(_selectClause).Append(" ");
             }
             
-            // FROM
-            sql.Append(_fromClause).Append(" ");
+            // FROM (only add if not empty - Raw queries don't have FROM)
+            if (_fromClause.Length > 0)
+            {
+                sql.Append(_fromClause).Append(" ");
+            }
             
             // JOIN
             if (_joinClause.Length > 0)
@@ -356,9 +369,9 @@ namespace Tuxedo.QueryBuilder
             }
             
             // LIMIT/OFFSET (pagination)
-            if (!string.IsNullOrEmpty(_skipTakeClause))
+            if (_skip.HasValue || _take.HasValue)
             {
-                sql.Append(_skipTakeClause);
+                sql.Append(BuildPaginationClause());
             }
             
             return sql.ToString().Trim();
@@ -413,15 +426,15 @@ namespace Tuxedo.QueryBuilder
             }
         }
 
-        private void UpdatePagination(int? skip, int? take)
+        private string BuildPaginationClause()
         {
-            _skipTakeClause = _dialect switch
+            return _dialect switch
             {
-                TuxedoDialect.SqlServer => BuildSqlServerPagination(skip, take),
-                TuxedoDialect.Postgres => BuildPostgresPagination(skip, take),
-                TuxedoDialect.MySql => BuildMySqlPagination(skip, take),
-                TuxedoDialect.Sqlite => BuildSqlitePagination(skip, take),
-                _ => BuildStandardPagination(skip, take)
+                TuxedoDialect.SqlServer => BuildSqlServerPagination(_skip, _take),
+                TuxedoDialect.Postgres => BuildPostgresPagination(_skip, _take),
+                TuxedoDialect.MySql => BuildMySqlPagination(_skip, _take),
+                TuxedoDialect.Sqlite => BuildSqlitePagination(_skip, _take),
+                _ => BuildStandardPagination(_skip, _take)
             };
         }
 
@@ -467,6 +480,12 @@ namespace Tuxedo.QueryBuilder
             {
                 pagination += $"LIMIT {take.Value} ";
             }
+            else if (skip.HasValue)
+            {
+                // PostgreSQL/MySQL/SQLite require LIMIT when using OFFSET
+                pagination += $"LIMIT 2147483647 "; // Max int value - effectively no limit
+            }
+            
             if (skip.HasValue)
             {
                 pagination += $"OFFSET {skip.Value}";
@@ -496,7 +515,17 @@ namespace Tuxedo.QueryBuilder
             var memberExpression = expression as MemberExpression;
             if (memberExpression == null && expression is LambdaExpression lambda)
             {
-                memberExpression = lambda.Body as MemberExpression;
+                var body = lambda.Body;
+                
+                // Handle Convert/ConvertChecked for value types (boxing)
+                if (body is UnaryExpression unary && 
+                    (unary.NodeType == ExpressionType.Convert || 
+                     unary.NodeType == ExpressionType.ConvertChecked))
+                {
+                    body = unary.Operand;
+                }
+                
+                memberExpression = body as MemberExpression;
             }
             
             if (memberExpression != null)

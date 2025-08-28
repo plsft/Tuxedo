@@ -335,8 +335,11 @@ namespace Tuxedo.BulkOperations
         {
             return typeof(T).GetProperties()
                 .Where(p => p.CanRead && p.CanWrite && 
+                       p.GetCustomAttribute<KeyAttribute>() == null &&
+                       p.GetCustomAttribute<ExplicitKeyAttribute>() == null &&
                        p.GetCustomAttribute<ComputedAttribute>() == null &&
-                       p.GetCustomAttribute<WriteAttribute>()?.Write != false)
+                       p.GetCustomAttribute<WriteAttribute>()?.Write != false &&
+                       !p.Name.Equals("Id", StringComparison.OrdinalIgnoreCase)) // Exclude auto-increment Id
                 .ToArray();
         }
 

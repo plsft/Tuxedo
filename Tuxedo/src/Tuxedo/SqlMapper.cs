@@ -1,6 +1,6 @@
 ﻿/*
  License: http://www.apache.org/licenses/LICENSE-2.0
- Home page: https://github.com/DapperLib/Dapper-dot-net
+ Home page: https://github.com/plsft/Tuxedo
  */
 
 using System;
@@ -763,7 +763,7 @@ namespace Tuxedo
         /// <remarks>Note: each row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
         public static IEnumerable<dynamic> Query(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, bool buffered = true, int? commandTimeout = null, CommandType? commandType = null) =>
-            Query<DapperRow>(cnn, sql, param, transaction, buffered, commandTimeout, commandType);
+            Query<TuxedoRow>(cnn, sql, param, transaction, buffered, commandTimeout, commandType);
 
         /// <summary>
         /// Return a dynamic object with properties matching the columns.
@@ -777,7 +777,7 @@ namespace Tuxedo
         /// <remarks>Note: the row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
         public static dynamic QueryFirst(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, int? commandTimeout = null, CommandType? commandType = null) =>
-            QueryFirst<DapperRow>(cnn, sql, param, transaction, commandTimeout, commandType);
+            QueryFirst<TuxedoRow>(cnn, sql, param, transaction, commandTimeout, commandType);
 
         /// <summary>
         /// Return a dynamic object with properties matching the columns.
@@ -791,7 +791,7 @@ namespace Tuxedo
         /// <remarks>Note: the row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
         public static dynamic? QueryFirstOrDefault(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, int? commandTimeout = null, CommandType? commandType = null) =>
-            QueryFirstOrDefault<DapperRow>(cnn, sql, param, transaction, commandTimeout, commandType);
+            QueryFirstOrDefault<TuxedoRow>(cnn, sql, param, transaction, commandTimeout, commandType);
 
         /// <summary>
         /// Return a dynamic object with properties matching the columns.
@@ -805,7 +805,7 @@ namespace Tuxedo
         /// <remarks>Note: the row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
         public static dynamic QuerySingle(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, int? commandTimeout = null, CommandType? commandType = null) =>
-            QuerySingle<DapperRow>(cnn, sql, param, transaction, commandTimeout, commandType);
+            QuerySingle<TuxedoRow>(cnn, sql, param, transaction, commandTimeout, commandType);
 
         /// <summary>
         /// Return a dynamic object with properties matching the columns.
@@ -819,7 +819,7 @@ namespace Tuxedo
         /// <remarks>Note: the row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Grandfathered")]
         public static dynamic? QuerySingleOrDefault(this IDbConnection cnn, string sql, object? param = null, IDbTransaction? transaction = null, int? commandTimeout = null, CommandType? commandType = null) =>
-            QuerySingleOrDefault<DapperRow>(cnn, sql, param, transaction, commandTimeout, commandType);
+            QuerySingleOrDefault<TuxedoRow>(cnn, sql, param, transaction, commandTimeout, commandType);
 
         /// <summary>
         /// Executes a query, returning the data typed as <typeparamref name="T"/>.
@@ -2063,9 +2063,9 @@ namespace Tuxedo
 
 
             // dynamic is passed in as Object ... by c# design
-            if (type == typeof(object) || type == typeof(DapperRow))
+            if (type == typeof(object) || type == typeof(TuxedoRow))
             {
-                return GetDapperRowDeserializer(reader, startBound, length, returnNullIfFirstMissing);
+                return GetTuxedoRowDeserializer(reader, startBound, length, returnNullIfFirstMissing);
             }
 
             Type? underlyingType = null;
@@ -2110,7 +2110,7 @@ namespace Tuxedo
             }
         }
 
-        internal static Func<DbDataReader, object> GetDapperRowDeserializer(DbDataReader reader, int startBound, int length, bool returnNullIfFirstMissing)
+        internal static Func<DbDataReader, object> GetTuxedoRowDeserializer(DbDataReader reader, int startBound, int length, bool returnNullIfFirstMissing)
         {
             var fieldCount = reader.FieldCount;
             if (length == -1)
@@ -2125,7 +2125,7 @@ namespace Tuxedo
 
             var effectiveFieldCount = Math.Min(fieldCount - startBound, length);
 
-            DapperTable? table = null;
+            TuxedoTable? table = null;
 
             return
                 r =>
@@ -2137,7 +2137,7 @@ namespace Tuxedo
                         {
                             names[i] = r.GetName(i + startBound);
                         }
-                        table = new DapperTable(names);
+                        table = new TuxedoTable(names);
                     }
 
                     var values = new object[effectiveFieldCount];
@@ -2168,7 +2168,7 @@ namespace Tuxedo
                             values[iter] = obj is DBNull ? null! : obj;
                         }
                     }
-                    return new DapperRow(table, values);
+                    return new TuxedoRow(table, values);
                 };
         }
         /// <summary>

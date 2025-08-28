@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet test:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(dotnet run:*)",
+      "Bash(ren:*)",
+      "Bash(move SqlMapper.DapperRow.cs SqlMapper.TuxedoRow.cs)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

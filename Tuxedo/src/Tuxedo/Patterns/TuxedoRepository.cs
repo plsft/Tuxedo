@@ -13,7 +13,7 @@ using Tuxedo.Expressions;
 
 namespace Tuxedo.Patterns
 {
-    public class DapperRepository<TEntity> : IRepository<TEntity>, ITransactional where TEntity : class
+    public class TuxedoRepository<TEntity> : IRepository<TEntity>, ITransactional where TEntity : class
     {
         protected readonly IDbConnection Connection;
         protected IDbTransaction? Transaction;
@@ -21,7 +21,7 @@ namespace Tuxedo.Patterns
         private readonly TuxedoDialect _dialect;
         private readonly ExpressionToSqlConverter _expressionConverter;
 
-        public DapperRepository(IDbConnection connection, IDbTransaction? transaction = null, TuxedoDialect? dialect = null)
+        public TuxedoRepository(IDbConnection connection, IDbTransaction? transaction = null, TuxedoDialect? dialect = null)
         {
             Connection = connection ?? throw new ArgumentNullException(nameof(connection));
             Transaction = transaction;
@@ -61,10 +61,6 @@ namespace Tuxedo.Patterns
             return await Connection.QueryAsync<TEntity>(sql, parameters, Transaction).ConfigureAwait(false);
         }
 
-        public virtual async Task<IEnumerable<TEntity>> FindAsync(Specification<TEntity> specification, CancellationToken cancellationToken = default)
-        {
-            return await FindAsync(specification.ToExpression(), cancellationToken).ConfigureAwait(false);
-        }
 
         public virtual async Task<TEntity?> SingleOrDefaultAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default)
         {

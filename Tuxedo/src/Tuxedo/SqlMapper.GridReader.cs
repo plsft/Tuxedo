@@ -62,31 +62,31 @@ namespace Tuxedo
             /// </summary>
             /// <param name="buffered">Whether the results should be buffered in memory.</param>
             /// <remarks>Note: each row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
-            public IEnumerable<dynamic> Read(bool buffered = true) => ReadImpl<dynamic>(typeof(DapperRow), buffered);
+            public IEnumerable<dynamic> Read(bool buffered = true) => ReadImpl<dynamic>(typeof(TuxedoRow), buffered);
 
             /// <summary>
             /// Read an individual row of the next grid of results, returned as a dynamic object.
             /// </summary>
             /// <remarks>Note: the row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
-            public dynamic ReadFirst() => ReadRow<dynamic>(typeof(DapperRow), Row.First);
+            public dynamic ReadFirst() => ReadRow<dynamic>(typeof(TuxedoRow), Row.First);
 
             /// <summary>
             /// Read an individual row of the next grid of results, returned as a dynamic object.
             /// </summary>
             /// <remarks>Note: the row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
-            public dynamic? ReadFirstOrDefault() => ReadRow<dynamic>(typeof(DapperRow), Row.FirstOrDefault);
+            public dynamic? ReadFirstOrDefault() => ReadRow<dynamic>(typeof(TuxedoRow), Row.FirstOrDefault);
 
             /// <summary>
             /// Read an individual row of the next grid of results, returned as a dynamic object.
             /// </summary>
             /// <remarks>Note: the row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
-            public dynamic ReadSingle() => ReadRow<dynamic>(typeof(DapperRow), Row.Single);
+            public dynamic ReadSingle() => ReadRow<dynamic>(typeof(TuxedoRow), Row.Single);
 
             /// <summary>
             /// Read an individual row of the next grid of results, returned as a dynamic object.
             /// </summary>
             /// <remarks>Note: the row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
-            public dynamic? ReadSingleOrDefault() => ReadRow<dynamic>(typeof(DapperRow), Row.SingleOrDefault);
+            public dynamic? ReadSingleOrDefault() => ReadRow<dynamic>(typeof(TuxedoRow), Row.SingleOrDefault);
 
             /// <summary>
             /// Read the next grid of results.

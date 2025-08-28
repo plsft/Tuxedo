@@ -81,15 +81,13 @@ namespace Tuxedo.Contrib
         public static Task<IEnumerable<T>> GetAllAsync<T>(this IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
             var type = typeof(T);
-            var cacheType = typeof(List<T>);
-
-            if (!GetQueries.TryGetValue(cacheType.TypeHandle, out string sql))
+            if (!GetQueries.TryGetValue(type.TypeHandle, out string sql))
             {
                 GetSingleKey<T>(nameof(GetAll));
                 var name = GetTableName(type);
 
                 sql = "SELECT * FROM " + name;
-                GetQueries[cacheType.TypeHandle] = sql;
+                GetQueries[type.TypeHandle] = sql;
             }
 
             if (!type.IsInterface)
@@ -208,6 +206,12 @@ namespace Tuxedo.Contrib
         /// <returns>true if updated, false if not found or not modified (tracked entities)</returns>
         public static async Task<bool> UpdateAsync<T>(this IDbConnection connection, T entityToUpdate, IDbTransaction transaction = null, int? commandTimeout = null, string[] propertiesToUpdate = null) where T : class
         {
+            if (entityToUpdate == null)
+                throw new ArgumentNullException(nameof(entityToUpdate));
+                
+            if (propertiesToUpdate != null && propertiesToUpdate.Length == 0)
+                throw new ArgumentException("Property list cannot be empty when specified", nameof(propertiesToUpdate));
+                
             if ((entityToUpdate is IProxy proxy) && !proxy.IsDirty)
             {
                 return false;

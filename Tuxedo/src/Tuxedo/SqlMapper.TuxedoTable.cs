@@ -5,14 +5,14 @@ namespace Tuxedo
 {
     public static partial class SqlMapper
     {
-        private sealed class DapperTable
+        private sealed class TuxedoTable
         {
             private string[] fieldNames;
             private readonly Dictionary<string, int> fieldNameLookup;
 
             internal string[] FieldNames => fieldNames;
 
-            public DapperTable(string[] fieldNames)
+            public TuxedoTable(string[] fieldNames)
             {
                 this.fieldNames = fieldNames ?? throw new ArgumentNullException(nameof(fieldNames));
 

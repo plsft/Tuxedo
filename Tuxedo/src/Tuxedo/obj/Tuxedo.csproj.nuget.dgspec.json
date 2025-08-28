@@ -63,6 +63,10 @@
         "net6.0": {
           "targetAlias": "net6.0",
           "dependencies": {
+            "Microsoft.Data.Sqlite": {
+              "target": "Package",
+              "version": "[6.0.35, )"
+            },
             "Microsoft.Extensions.Caching.Memory": {
               "target": "Package",
               "version": "[8.0.1, )"
@@ -99,6 +103,14 @@
               "target": "Package",
               "version": "[6.0.11, )"
             },
+            "Polly": {
+              "target": "Package",
+              "version": "[8.5.1, )"
+            },
+            "Polly.Extensions.Http": {
+              "target": "Package",
+              "version": "[3.0.0, )"
+            },
             "System.Data.SqlClient": {
               "target": "Package",
               "version": "[4.8.6, )"
@@ -128,6 +140,10 @@
             "Microsoft.Data.SqlClient": {
               "target": "Package",
               "version": "[5.2.2, )"
+            },
+            "Microsoft.Data.Sqlite": {
+              "target": "Package",
+              "version": "[8.0.11, )"
             },
             "Microsoft.Extensions.Caching.Memory": {
               "target": "Package",
@@ -164,6 +180,14 @@
             "Npgsql": {
               "target": "Package",
               "version": "[8.0.5, )"
+            },
+            "Polly": {
+              "target": "Package",
+              "version": "[8.5.1, )"
+            },
+            "Polly.Extensions.Http": {
+              "target": "Package",
+              "version": "[3.0.0, )"
             }
           },
           "imports": [
@@ -190,6 +214,10 @@
             "Microsoft.Data.SqlClient": {
               "target": "Package",
               "version": "[5.2.2, )"
+            },
+            "Microsoft.Data.Sqlite": {
+              "target": "Package",
+              "version": "[9.0.0, )"
             },
             "Microsoft.Extensions.Caching.Memory": {
               "target": "Package",
@@ -226,6 +254,14 @@
             "Npgsql": {
               "target": "Package",
               "version": "[9.0.1, )"
+            },
+            "Polly": {
+              "target": "Package",
+              "version": "[8.5.1, )"
+            },
+            "Polly.Extensions.Http": {
+              "target": "Package",
+              "version": "[3.0.0, )"
             }
           },
           "imports": [

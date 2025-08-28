@@ -9,7 +9,7 @@ using System.Reflection.Emit;
 namespace Tuxedo
 {
     /// <summary>
-    /// A bag of parameters that can be passed to the Dapper Query and Execute methods
+    /// A bag of parameters that can be passed to the Tuxedo Query and Execute methods
     /// </summary>
     public partial class DynamicParameters : SqlMapper.IDynamicParameters, SqlMapper.IParameterLookup, SqlMapper.IParameterCallbacks
     {
