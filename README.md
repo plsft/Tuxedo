@@ -1167,6 +1167,455 @@ await bulkOps.BulkInsertAsync(
 - Use transactions for data consistency
 - Consider disabling indexes/constraints during bulk loads
 
+## Caching
+
+Tuxedo provides a comprehensive caching layer to improve query performance and reduce database load. The caching system supports both in-memory and distributed caching scenarios.
+
+### Setup and Configuration
+
+Configure caching in your application:
+
+```csharp
+using Tuxedo.Caching;
+using Tuxedo.DependencyInjection;
+
+// Basic setup with memory cache
+services.AddTuxedoCaching(options =>
+{
+    options.DefaultCacheDuration = TimeSpan.FromMinutes(5);
+    options.MaxCacheSize = 1000; // Maximum number of cached items
+    options.EnableSlidingExpiration = true;
+});
+
+// With configuration
+services.AddTuxedoCaching(configuration, "TuxedoCaching");
+
+// appsettings.json
+{
+  "TuxedoCaching": {
+    "DefaultCacheDuration": "00:05:00",
+    "MaxCacheSize": 1000,
+    "EnableSlidingExpiration": true
+  }
+}
+
+// Complete enterprise setup
+services.AddTuxedoEnterprise(options =>
+{
+    options.EnableCaching = true;
+    options.DefaultCacheDuration = TimeSpan.FromMinutes(10);
+    options.MaxCacheSize = 5000;
+});
+```
+
+### Basic Query Caching
+
+Cache query results with automatic key generation:
+
+```csharp
+using Tuxedo.Caching;
+
+// Cache query results
+var products = await connection.QueryWithCacheAsync<Product>(
+    "SELECT * FROM Products WHERE Category = @Category",
+    new { Category = "Electronics" },
+    cacheExpiration: TimeSpan.FromMinutes(10)
+);
+
+// Cache single result
+var product = await connection.QuerySingleWithCacheAsync<Product>(
+    "SELECT * FROM Products WHERE Id = @Id",
+    new { Id = productId },
+    cacheExpiration: TimeSpan.FromHours(1)
+);
+
+// Custom cache key
+var topProducts = await connection.QueryWithCacheAsync<Product>(
+    "SELECT TOP 10 * FROM Products ORDER BY Sales DESC",
+    cacheKey: "top-products",
+    cacheExpiration: TimeSpan.FromMinutes(15)
+);
+```
+
+### Advanced Caching Patterns
+
+#### Cache with Tags
+
+Organize cached items with tags for bulk invalidation:
+
+```csharp
+public class ProductRepository
+{
+    private readonly IDbConnection _connection;
+    private readonly IQueryCache _cache;
+    private const string ProductTag = "products";
+    
+    public async Task<IEnumerable<Product>> GetByCategoryAsync(string category)
+    {
+        var key = $"products:category:{category}";
+        
+        return await _cache.GetOrAddAsync(key, async () =>
+        {
+            var products = await _connection.QueryAsync<Product>(
+                "SELECT * FROM Products WHERE Category = @Category",
+                new { Category = category }
+            );
+            
+            // Tag this cache entry
+            if (_cache is MemoryQueryCache memCache)
+            {
+                memCache.AddKeyToTag(key, ProductTag);
+            }
+            
+            return products;
+        },
+        expiration: TimeSpan.FromMinutes(10));
+    }
+    
+    public async Task InvalidateProductCacheAsync()
+    {
+        // Invalidate all product-related cache entries
+        await _cache.InvalidateByTagAsync(ProductTag);
+    }
+}
+```
+
+#### Conditional Caching
+
+Cache based on specific conditions:
+
+```csharp
+public async Task<IEnumerable<Order>> GetOrdersAsync(
+    DateTime startDate, 
+    DateTime endDate,
+    bool useCache = true)
+{
+    // Only cache if date range is reasonable
+    var shouldCache = useCache && 
+                     (endDate - startDate).TotalDays <= 30;
+    
+    if (shouldCache)
+    {
+        var cacheKey = $"orders:{startDate:yyyyMMdd}:{endDate:yyyyMMdd}";
+        return await connection.QueryWithCacheAsync<Order>(
+            "SELECT * FROM Orders WHERE OrderDate BETWEEN @Start AND @End",
+            new { Start = startDate, End = endDate },
+            cacheKey: cacheKey,
+            cacheExpiration: TimeSpan.FromMinutes(30)
+        );
+    }
+    
+    // Direct query without caching
+    return await connection.QueryAsync<Order>(
+        "SELECT * FROM Orders WHERE OrderDate BETWEEN @Start AND @End",
+        new { Start = startDate, End = endDate }
+    );
+}
+```
+
+#### Cache-Aside Pattern
+
+Manual cache management for complex scenarios:
+
+```csharp
+public class CustomerService
+{
+    private readonly IQueryCache _cache;
+    private readonly IDbConnection _connection;
+    
+    public async Task<Customer> GetCustomerWithOrdersAsync(int customerId)
+    {
+        var cacheKey = $"customer:{customerId}:full";
+        
+        // Try to get from cache
+        var cached = await _cache.GetAsync<CustomerWithOrders>(cacheKey);
+        if (cached != null)
+            return cached;
+        
+        // Load from database
+        using var multi = await _connection.QueryMultipleAsync(@"
+            SELECT * FROM Customers WHERE Id = @Id;
+            SELECT * FROM Orders WHERE CustomerId = @Id;",
+            new { Id = customerId });
+        
+        var customer = await multi.ReadSingleAsync<Customer>();
+        var orders = await multi.ReadAsync<Order>();
+        
+        var result = new CustomerWithOrders
+        {
+            Customer = customer,
+            Orders = orders.ToList()
+        };
+        
+        // Cache the result
+        await _cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(15));
+        
+        return result;
+    }
+    
+    public async Task UpdateCustomerAsync(Customer customer)
+    {
+        // Update database
+        await _connection.UpdateAsync(customer);
+        
+        // Invalidate cache
+        await _cache.RemoveAsync($"customer:{customer.Id}:full");
+    }
+}
+```
+
+### Cache Invalidation Strategies
+
+#### Time-Based Expiration
+
+```csharp
+// Absolute expiration
+await _cache.SetAsync("key", value, TimeSpan.FromMinutes(30));
+
+// Sliding expiration (via configuration)
+services.AddTuxedoCaching(options =>
+{
+    options.EnableSlidingExpiration = true;
+    options.DefaultCacheDuration = TimeSpan.FromMinutes(5);
+});
+```
+
+#### Event-Based Invalidation
+
+```csharp
+public class ProductService
+{
+    private readonly IQueryCache _cache;
+    
+    public async Task CreateProductAsync(Product product)
+    {
+        await _connection.InsertAsync(product);
+        
+        // Invalidate related caches
+        await InvalidateProductCachesAsync(product.Category);
+    }
+    
+    public async Task UpdateProductAsync(Product product)
+    {
+        await _connection.UpdateAsync(product);
+        
+        // Invalidate specific and related caches
+        await _cache.RemoveAsync($"product:{product.Id}");
+        await InvalidateProductCachesAsync(product.Category);
+    }
+    
+    private async Task InvalidateProductCachesAsync(string category)
+    {
+        // Invalidate category cache
+        await _cache.RemoveAsync($"products:category:{category}");
+        
+        // Invalidate aggregate caches
+        await _cache.RemoveAsync("products:count");
+        await _cache.RemoveAsync($"products:category:{category}:count");
+        
+        // Invalidate top products if exists
+        await _cache.RemoveAsync("top-products");
+    }
+}
+```
+
+#### Dependency-Based Invalidation
+
+```csharp
+public class CacheDependencyManager
+{
+    private readonly IQueryCache _cache;
+    private readonly Dictionary<string, HashSet<string>> _dependencies;
+    
+    public async Task<T> GetWithDependenciesAsync<T>(
+        string key,
+        Func<Task<T>> factory,
+        params string[] dependsOn) where T : class
+    {
+        // Track dependencies
+        foreach (var dependency in dependsOn)
+        {
+            if (!_dependencies.ContainsKey(dependency))
+                _dependencies[dependency] = new HashSet<string>();
+            _dependencies[dependency].Add(key);
+        }
+        
+        return await _cache.GetOrAddAsync(key, factory);
+    }
+    
+    public async Task InvalidateDependenciesAsync(string dependency)
+    {
+        if (_dependencies.TryGetValue(dependency, out var keys))
+        {
+            foreach (var key in keys)
+            {
+                await _cache.RemoveAsync(key);
+            }
+            _dependencies.Remove(dependency);
+        }
+    }
+}
+```
+
+### Distributed Caching
+
+Implement distributed caching with Redis or SQL Server:
+
+```csharp
+// Custom distributed cache implementation
+public class RedisQueryCache : IQueryCache
+{
+    private readonly IDistributedCache _distributedCache;
+    private readonly ISerializer _serializer;
+    
+    public async Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default) 
+        where T : class
+    {
+        var bytes = await _distributedCache.GetAsync(key, cancellationToken);
+        if (bytes == null) return null;
+        
+        return _serializer.Deserialize<T>(bytes);
+    }
+    
+    public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null, 
+        CancellationToken cancellationToken = default) where T : class
+    {
+        var bytes = _serializer.Serialize(value);
+        var options = new DistributedCacheEntryOptions();
+        
+        if (expiration.HasValue)
+            options.SetSlidingExpiration(expiration.Value);
+        
+        await _distributedCache.SetAsync(key, bytes, options, cancellationToken);
+    }
+    
+    // ... other methods
+}
+
+// Register distributed cache
+services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = "localhost:6379";
+    options.InstanceName = "TuxedoCache";
+});
+
+services.AddTuxedoCaching(options =>
+{
+    options.UseDistributedCache = true;
+    options.DistributedCacheFactory = sp => 
+        new RedisQueryCache(
+            sp.GetRequiredService<IDistributedCache>(),
+            sp.GetRequiredService<ISerializer>()
+        );
+});
+```
+
+### Cache Performance Monitoring
+
+Monitor cache performance and hit rates:
+
+```csharp
+public class CacheMetrics
+{
+    private long _hits;
+    private long _misses;
+    private long _evictions;
+    
+    public double HitRate => _hits / (double)(_hits + _misses);
+    
+    public void RecordHit() => Interlocked.Increment(ref _hits);
+    public void RecordMiss() => Interlocked.Increment(ref _misses);
+    public void RecordEviction() => Interlocked.Increment(ref _evictions);
+}
+
+public class InstrumentedQueryCache : IQueryCache
+{
+    private readonly IQueryCache _innerCache;
+    private readonly CacheMetrics _metrics;
+    private readonly ILogger<InstrumentedQueryCache> _logger;
+    
+    public async Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default) 
+        where T : class
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var result = await _innerCache.GetAsync<T>(key, cancellationToken);
+        
+        if (result != null)
+        {
+            _metrics.RecordHit();
+            _logger.LogDebug("Cache hit for {Key} in {ElapsedMs}ms", 
+                key, stopwatch.ElapsedMilliseconds);
+        }
+        else
+        {
+            _metrics.RecordMiss();
+            _logger.LogDebug("Cache miss for {Key}", key);
+        }
+        
+        return result;
+    }
+    
+    // ... other methods with instrumentation
+}
+```
+
+### Caching Best Practices
+
+1. **Cache Key Strategy**
+   - Use consistent, predictable key patterns
+   - Include version numbers for cache busting
+   - Avoid sensitive data in cache keys
+
+2. **Expiration Policies**
+   - Use sliding expiration for frequently accessed data
+   - Shorter TTL for volatile data
+   - Longer TTL for reference data
+
+3. **Memory Management**
+   - Set appropriate cache size limits
+   - Monitor memory usage
+   - Implement cache eviction policies
+
+4. **Invalidation Strategy**
+   - Invalidate on write operations
+   - Use tags for bulk invalidation
+   - Consider eventual consistency
+
+5. **Performance Considerations**
+   - Cache serializable data only
+   - Avoid caching large objects
+   - Use compression for large values
+   - Monitor cache hit rates
+
+### Cache Configuration Examples
+
+```csharp
+// Development environment
+services.AddTuxedoCaching(options =>
+{
+    options.DefaultCacheDuration = TimeSpan.FromSeconds(30);
+    options.MaxCacheSize = 100;
+    options.EnableSlidingExpiration = false;
+});
+
+// Production environment
+services.AddTuxedoCaching(options =>
+{
+    options.DefaultCacheDuration = TimeSpan.FromMinutes(15);
+    options.MaxCacheSize = 10000;
+    options.EnableSlidingExpiration = true;
+});
+
+// High-traffic scenarios
+services.AddTuxedoCaching(options =>
+{
+    options.DefaultCacheDuration = TimeSpan.FromHours(1);
+    options.MaxCacheSize = 50000;
+    options.EnableSlidingExpiration = true;
+    options.UseDistributedCache = true;
+});
+```
+
 ## Diagnostics and Monitoring
 
 Tuxedo provides comprehensive diagnostics and health monitoring capabilities for production environments.

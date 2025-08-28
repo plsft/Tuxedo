@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyDescriptionAttribute(("Tuxedo: Dapper + Contrib merged and modernized for .NET 6+, with adapters for SQL" +
     " Server, PostgreSQL, and MySQL."))]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("0.1.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.1.0+92fdebd002a5b6e094101cce5187e6f7467722fc")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.1.0+063aa2b6f01392ad8b4039d5c5ef4133007d7bc6")]
 [assembly: System.Reflection.AssemblyProductAttribute("Tuxedo")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Tuxedo")]
 [assembly: System.Reflection.AssemblyVersionAttribute("0.1.0.0")]

@@ -5,7 +5,7 @@
     <version>0.1.0</version>
     <authors>Tuxedo Team</authors>
     <description>Tuxedo: Dapper + Contrib merged and modernized for .NET 6+, with adapters for SQL Server, PostgreSQL, and MySQL.</description>
-    <repository type="git" url="https://github.com/your-org/tuxedo" commit="92fdebd002a5b6e094101cce5187e6f7467722fc" />
+    <repository type="git" url="https://github.com/your-org/tuxedo" commit="063aa2b6f01392ad8b4039d5c5ef4133007d7bc6" />
     <dependencies>
       <group targetFramework="net6.0">
         <dependency id="Microsoft.Data.Sqlite" version="6.0.35" exclude="Build,Analyzers" />

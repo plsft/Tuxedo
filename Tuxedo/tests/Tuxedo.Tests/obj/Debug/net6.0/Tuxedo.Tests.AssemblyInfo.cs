@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Tuxedo.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+92fdebd002a5b6e094101cce5187e6f7467722fc")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+063aa2b6f01392ad8b4039d5c5ef4133007d7bc6")]
 [assembly: System.Reflection.AssemblyProductAttribute("Tuxedo.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Tuxedo.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
