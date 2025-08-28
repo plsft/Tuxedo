@@ -12,6 +12,7 @@ namespace Tuxedo.Patterns
         Task<TEntity?> GetByIdAsync(object id, CancellationToken cancellationToken = default);
         Task<IEnumerable<TEntity>> GetAllAsync(CancellationToken cancellationToken = default);
         Task<IEnumerable<TEntity>> FindAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default);
+        Task<IEnumerable<TEntity>> FindAsync(Specification<TEntity> specification, CancellationToken cancellationToken = default);
         Task<TEntity?> SingleOrDefaultAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default);
         Task<bool> ExistsAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default);
         Task<int> CountAsync(Expression<Func<TEntity, bool>>? predicate = null, CancellationToken cancellationToken = default);

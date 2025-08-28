@@ -61,6 +61,11 @@ namespace Tuxedo.Patterns
             return await Connection.QueryAsync<TEntity>(sql, parameters, Transaction).ConfigureAwait(false);
         }
 
+        public virtual async Task<IEnumerable<TEntity>> FindAsync(Specification<TEntity> specification, CancellationToken cancellationToken = default)
+        {
+            return await FindAsync(specification.ToExpression(), cancellationToken).ConfigureAwait(false);
+        }
+
         public virtual async Task<TEntity?> SingleOrDefaultAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default)
         {
             var sql = BuildSelectQuery(predicate);
