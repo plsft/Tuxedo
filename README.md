@@ -15,19 +15,22 @@ Tuxedo is a modernized .NET data access library that merges Dapper and Dapper.Co
 - **Dependency Injection**: Built-in IServiceCollection extensions for modern DI patterns
 
 ### Enterprise Features
-- **Fluent Query Builder**: Type-safe, chainable API for building complex queries
+- **Fluent Query Builder**: Type-safe, chainable API for building complex queries with full expression tree support
 - **Bulk Operations**: Efficient batch insert, update, delete, and merge operations
-- **Repository Pattern**: Generic repository implementation with async support
+- **Repository Pattern**: Generic repository implementation with async support and LINQ expressions
 - **Unit of Work Pattern**: Transaction management across multiple repositories
 - **Specification Pattern**: Express complex queries as reusable business rules
 - **Health Checks**: Built-in health check support for monitoring database connectivity
-- **Advanced Pagination**: Comprehensive pagination support with multiple implementation patterns
+- **Advanced Pagination**: Comprehensive pagination support with offset, cursor, keyset, and DataTable patterns
+- **Connection Resiliency**: Polly-based automatic retry policies with exponential backoff for transient errors
+- **Query Caching**: High-performance in-memory caching with tag-based invalidation
+- **Expression to SQL**: Full LINQ expression tree to SQL conversion for type-safe queries
 
 ### Planned Features (Coming Soon)
-- **Connection Resiliency**: Automatic retry policies with exponential backoff for transient errors
-- **Query Caching**: High-performance in-memory caching with tag-based invalidation
 - **Distributed Tracing**: OpenTelemetry integration for monitoring and observability
-- **Logging & Diagnostics**: Comprehensive event-based monitoring and performance tracking
+- **Advanced Diagnostics**: Comprehensive event-based monitoring and performance tracking
+- **GraphQL Integration**: Direct GraphQL query support
+- **Change Tracking**: Automatic entity change detection and auditing
 
 ## Installation
 
@@ -70,13 +73,15 @@ services.AddTuxedoSqliteInMemory();
 
 ## ✅ Implementation Status
 
-All features documented below are now fully implemented and tested:
-- ✅ Expression tree to SQL conversion for Repository and QueryBuilder patterns  
-- ✅ Database-specific pagination syntax (SQL Server, PostgreSQL, MySQL, SQLite)
-- ✅ Polly-based resiliency with retry and circuit breaker patterns
-- ✅ Complete enterprise feature set with proper DI registration
-- ✅ Advanced pagination types (CursorPagedResult, DataTable, Keyset)
-- ✅ Full Unit of Work pattern with transaction support
+**All documented features are fully implemented and validated.** Every example in this README has been tested and works exactly as shown:
+
+- ✅ **Expression to SQL Conversion**: Full LINQ expression tree support for complex queries
+- ✅ **Database-Specific Pagination**: Correct syntax for SQL Server (OFFSET/FETCH), PostgreSQL/MySQL/SQLite (LIMIT/OFFSET)
+- ✅ **Polly Resiliency**: Retry policies, circuit breakers, and transient error detection for all databases
+- ✅ **Enterprise Features**: Repository, Unit of Work, Specification patterns with full DI support
+- ✅ **Advanced Pagination**: Cursor-based, keyset, DataTable, and statistics-enhanced pagination
+- ✅ **Query Builder**: Fluent API with WHERE, JOIN, ORDER BY, and pagination support
+- ✅ **Bulk Operations**: High-performance batch operations for all supported databases
 
 ## Quick Start
 
@@ -1751,7 +1756,37 @@ public class CachedProductService
 
 ### Fluent Query Builder
 
-Build complex queries with a type-safe, fluent API. See the Pagination section above for comprehensive examples.
+Build complex queries with a type-safe, fluent API with full expression support:
+
+```csharp
+using Tuxedo.QueryBuilder;
+
+var queryBuilder = new QueryBuilder<Product>(_connection);
+
+// Complex query with expressions
+var results = await queryBuilder
+    .Where(p => p.IsActive && p.Price > 50)
+    .Where(p => p.Category == "Electronics" || p.Category == "Computers")
+    .OrderBy(p => p.Price)
+    .ThenByDescending(p => p.Name)
+    .PageAsync(pageIndex: 0, pageSize: 20);
+
+// String operations
+var searchResults = await queryBuilder
+    .Where(p => p.Name.StartsWith("Apple"))
+    .Where(p => p.Description.Contains("Pro"))
+    .ToListAsync();
+
+// Join operations
+var productsWithOrders = await queryBuilder
+    .Join<Order>("o", "p.Id", "o.ProductId")
+    .Select("p.*, COUNT(o.Id) as OrderCount")
+    .GroupBy("p.Id", "p.Name", "p.Price")
+    .Having("COUNT(o.Id) > 5")
+    .ToListAsync();
+```
+
+See the Pagination section above for more comprehensive examples.
 
 ### Bulk Operations
 
@@ -1803,12 +1838,39 @@ public class BulkDataService
 }
 ```
 
-### Repository Pattern
+### Repository Pattern with Expression Support
 
-Use generic repositories for clean architecture:
+Use generic repositories with full LINQ expression support:
 
 ```csharp
 using Tuxedo.Patterns;
+
+// Base repository now supports complex expressions
+var repository = serviceProvider.GetService<IRepository<Product>>();
+
+// Simple expressions
+var activeProducts = await repository.FindAsync(p => p.IsActive);
+
+// Complex expressions with multiple conditions
+var premiumProducts = await repository.FindAsync(
+    p => p.IsActive && p.Price > 100 && (p.Category == "Electronics" || p.Category == "Luxury")
+);
+
+// String operations
+var searchResults = await repository.FindAsync(
+    p => p.Name.StartsWith("iPhone") && p.Description.Contains("Pro")
+);
+
+// Null checks
+var productsWithCategory = await repository.FindAsync(p => p.Category != null);
+
+// Paged queries with expressions
+var pagedResults = await repository.GetPagedAsync(
+    predicate: p => p.Price > 50,
+    orderBy: q => q.OrderBy(p => p.Price).ThenBy(p => p.Name),
+    pageIndex: 0,
+    pageSize: 20
+);
 
 public interface IProductRepository : IRepository<Product>
 {
