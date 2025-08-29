@@ -604,6 +604,387 @@ dynamicQuery.OrderBy(p => p.Name)
 var results = await dynamicQuery.ToListAsync(db);
 ```
 
+## QueryBuilder with Specification Pattern
+
+The QueryBuilder becomes even more powerful when combined with the **Specification Pattern**, enabling you to build complex, reusable, and testable business logic. This pattern helps organize domain rules and makes queries more maintainable.
+
+### Setting Up the Specification Pattern
+
+```csharp
+// Base specification interface and implementation
+public interface ISpecification<T>
+{
+    Expression<Func<T, bool>> ToExpression();
+    bool IsSatisfiedBy(T entity);
+}
+
+public abstract class Specification<T> : ISpecification<T>
+{
+    public abstract Expression<Func<T, bool>> ToExpression();
+    
+    public bool IsSatisfiedBy(T entity)
+    {
+        var predicate = ToExpression().Compile();
+        return predicate(entity);
+    }
+
+    // Logical operators for combining specifications
+    public Specification<T> And(Specification<T> specification)
+    {
+        return new AndSpecification<T>(this, specification);
+    }
+
+    public Specification<T> Or(Specification<T> specification)
+    {
+        return new OrSpecification<T>(this, specification);
+    }
+
+    public Specification<T> Not()
+    {
+        return new NotSpecification<T>(this);
+    }
+}
+```
+
+### Domain-Specific Specifications
+
+Create reusable business rules as specifications:
+
+```csharp
+// Product specifications
+public class ActiveProductSpecification : Specification<Product>
+{
+    public override Expression<Func<Product, bool>> ToExpression()
+    {
+        return product => product.Active;
+    }
+}
+
+public class ProductPriceRangeSpecification : Specification<Product>
+{
+    private readonly decimal _minPrice;
+    private readonly decimal _maxPrice;
+
+    public ProductPriceRangeSpecification(decimal minPrice, decimal maxPrice)
+    {
+        _minPrice = minPrice;
+        _maxPrice = maxPrice;
+    }
+
+    public override Expression<Func<Product, bool>> ToExpression()
+    {
+        return product => product.Price >= _minPrice && product.Price <= _maxPrice;
+    }
+}
+
+public class ProductCategorySpecification : Specification<Product>
+{
+    private readonly string _category;
+
+    public ProductCategorySpecification(string category)
+    {
+        _category = category;
+    }
+
+    public override Expression<Func<Product, bool>> ToExpression()
+    {
+        return product => product.Category == _category;
+    }
+}
+
+public class RecentProductSpecification : Specification<Product>
+{
+    private readonly int _daysSinceCreated;
+
+    public RecentProductSpecification(int daysSinceCreated = 30)
+    {
+        _daysSinceCreated = daysSinceCreated;
+    }
+
+    public override Expression<Func<Product, bool>> ToExpression()
+    {
+        var cutoffDate = DateTime.Now.AddDays(-_daysSinceCreated);
+        return product => product.CreatedDate >= cutoffDate;
+    }
+}
+```
+
+### Repository with Specification Pattern
+
+Integrate specifications with QueryBuilder in your repositories:
+
+```csharp
+public class ProductRepository
+{
+    private readonly IDbConnection _connection;
+
+    public ProductRepository(IDbConnection connection)
+    {
+        _connection = connection;
+    }
+
+    public async Task<IEnumerable<Product>> GetBySpecificationAsync(ISpecification<Product> specification)
+    {
+        return await QueryBuilder.Query<Product>()
+            .Where(specification.ToExpression())
+            .ToListAsync(_connection);
+    }
+
+    public async Task<IEnumerable<Product>> GetBySpecificationAsync(
+        ISpecification<Product> specification,
+        Func<IQueryBuilder<Product>, IQueryBuilder<Product>> configure)
+    {
+        var query = QueryBuilder.Query<Product>()
+            .Where(specification.ToExpression());
+
+        query = configure(query);
+
+        return await query.ToListAsync(_connection);
+    }
+}
+```
+
+### Business Logic with Combined Specifications
+
+Create complex business queries by combining simple specifications:
+
+```csharp
+// Example 1: Available products in price range
+public async Task<IEnumerable<Product>> GetAvailableProductsInPriceRangeAsync(
+    decimal minPrice, decimal maxPrice, string category)
+{
+    var specification = new ActiveProductSpecification()
+        .And(new InStockProductSpecification())
+        .And(new ProductPriceRangeSpecification(minPrice, maxPrice))
+        .And(new ProductCategorySpecification(category));
+
+    return await QueryBuilder.Query<Product>()
+        .Where(specification.ToExpression())
+        .OrderBy(p => p.Name)
+        .ToListAsync(_connection);
+}
+
+// Example 2: Featured products using complex business logic
+public async Task<IEnumerable<Product>> GetFeaturedProductsAsync()
+{
+    // Business rule: Featured products are recent, in-stock, active products under $500
+    var specification = new ActiveProductSpecification()
+        .And(new InStockProductSpecification())
+        .And(new RecentProductSpecification(60)) // Created in last 60 days
+        .And(new ProductPriceRangeSpecification(0, 500));
+
+    return await QueryBuilder.Query<Product>()
+        .Where(specification.ToExpression())
+        .OrderByDescending(p => p.CreatedDate)
+        .Take(20)
+        .ToListAsync(_connection);
+}
+
+// Example 3: Products with extreme pricing (cheap or expensive)
+public async Task<IEnumerable<Product>> GetExtremePricingProductsAsync()
+{
+    var cheapSpec = new ProductPriceRangeSpecification(0, 20);
+    var expensiveSpec = new ProductPriceRangeSpecification(500, decimal.MaxValue);
+    var priceExtremeSpec = cheapSpec.Or(expensiveSpec);
+
+    return await QueryBuilder.Query<Product>()
+        .Where(priceExtremeSpec.ToExpression())
+        .Where(p => p.Active)
+        .OrderBy(p => p.Price)
+        .ToListAsync(_connection);
+}
+
+// Example 4: Products NOT in specific category
+public async Task<IEnumerable<Product>> GetNonElectronicsProductsAsync()
+{
+    var notElectronicsSpec = new ProductCategorySpecification("Electronics").Not();
+    
+    return await QueryBuilder.Query<Product>()
+        .Where(notElectronicsSpec.ToExpression())
+        .Where(p => p.Active)
+        .OrderBy(p => p.Name)
+        .Take(50)
+        .ToListAsync(_connection);
+}
+```
+
+### Dynamic Query Building with Specifications
+
+Build queries dynamically based on user input:
+
+```csharp
+public async Task<IEnumerable<Product>> BuildDynamicProductQueryAsync(
+    string? category = null,
+    decimal? minPrice = null,
+    decimal? maxPrice = null,
+    string? searchTerm = null,
+    bool? activeOnly = true,
+    bool? inStockOnly = true,
+    int pageIndex = 0,
+    int pageSize = 20)
+{
+    var query = QueryBuilder.Query<Product>();
+
+    // Apply base specifications
+    if (activeOnly == true)
+    {
+        var activeSpec = new ActiveProductSpecification();
+        query = query.Where(activeSpec.ToExpression());
+    }
+
+    if (inStockOnly == true)
+    {
+        var inStockSpec = new InStockProductSpecification();
+        query = query.Where(inStockSpec.ToExpression());
+    }
+
+    // Apply conditional filters
+    if (!string.IsNullOrEmpty(category))
+    {
+        var categorySpec = new ProductCategorySpecification(category);
+        query = query.Where(categorySpec.ToExpression());
+    }
+
+    if (minPrice.HasValue && maxPrice.HasValue)
+    {
+        var priceSpec = new ProductPriceRangeSpecification(minPrice.Value, maxPrice.Value);
+        query = query.Where(priceSpec.ToExpression());
+    }
+
+    if (!string.IsNullOrEmpty(searchTerm))
+    {
+        var searchSpec = new ProductNameContainsSpecification(searchTerm);
+        query = query.Where(searchSpec.ToExpression());
+    }
+
+    // Apply ordering and pagination
+    return await query
+        .OrderBy(p => p.Name)
+        .Skip(pageIndex * pageSize)
+        .Take(pageSize)
+        .ToListAsync(_connection);
+}
+```
+
+### Advanced Specification Patterns
+
+#### Parameterized Specifications
+
+Create specifications that accept parameters for flexible reuse:
+
+```csharp
+public class ProductCreatedAfterSpecification : Specification<Product>
+{
+    private readonly DateTime _date;
+
+    public ProductCreatedAfterSpecification(DateTime date)
+    {
+        _date = date;
+    }
+
+    public override Expression<Func<Product, bool>> ToExpression()
+    {
+        return product => product.CreatedDate > _date;
+    }
+}
+
+// Usage
+var recentSpec = new ProductCreatedAfterSpecification(DateTime.Now.AddDays(-7));
+var recentProducts = await QueryBuilder.Query<Product>()
+    .Where(recentSpec.ToExpression())
+    .ToListAsync(_connection);
+```
+
+#### Composite Business Specifications
+
+Encapsulate complex business rules:
+
+```csharp
+public class PromotionEligibleProductSpecification : Specification<Product>
+{
+    public override Expression<Func<Product, bool>> ToExpression()
+    {
+        // Business rule: Promotion eligible products are active, in-stock, 
+        // priced between $10-$1000, and not discontinued
+        var activeSpec = new ActiveProductSpecification();
+        var inStockSpec = new InStockProductSpecification();
+        var priceSpec = new ProductPriceRangeSpecification(10, 1000);
+        
+        return activeSpec.And(inStockSpec).And(priceSpec).ToExpression();
+    }
+}
+
+// Usage
+var promoProducts = await QueryBuilder.Query<Product>()
+    .Where(new PromotionEligibleProductSpecification().ToExpression())
+    .OrderByDescending(p => p.Price)
+    .Take(100)
+    .ToListAsync(_connection);
+```
+
+#### Specifications with Complex Relationships
+
+Handle relationships and joins with specifications:
+
+```csharp
+public async Task<IEnumerable<Product>> GetProductsInActiveCategoriesAsync()
+{
+    var activeProductSpec = new ActiveProductSpecification();
+    
+    return await QueryBuilder.Query<Product>()
+        .InnerJoin<Category>((p, c) => p.CategoryId == c.Id)
+        .Where(activeProductSpec.ToExpression()) // Product must be active
+        .Where(c => c.Active) // Category must be active
+        .OrderBy(p => p.Name)
+        .ToListAsync(_connection);
+}
+```
+
+### Testing Specifications
+
+Specifications are highly testable in isolation:
+
+```csharp
+[Test]
+public void ActiveProductSpecification_ShouldReturnTrueForActiveProduct()
+{
+    // Arrange
+    var specification = new ActiveProductSpecification();
+    var activeProduct = new Product { Active = true };
+    var inactiveProduct = new Product { Active = false };
+
+    // Act & Assert
+    Assert.IsTrue(specification.IsSatisfiedBy(activeProduct));
+    Assert.IsFalse(specification.IsSatisfiedBy(inactiveProduct));
+}
+
+[Test]
+public void PriceRangeSpecification_ShouldCombineWithOtherSpecs()
+{
+    // Arrange
+    var priceSpec = new ProductPriceRangeSpecification(10, 100);
+    var activeSpec = new ActiveProductSpecification();
+    var combinedSpec = priceSpec.And(activeSpec);
+    
+    var product = new Product { Price = 50, Active = true };
+
+    // Act & Assert
+    Assert.IsTrue(combinedSpec.IsSatisfiedBy(product));
+}
+```
+
+### Benefits of QueryBuilder + Specification Pattern
+
+1. **🔧 Reusability**: Specifications can be reused across different queries
+2. **📋 Testability**: Business rules are isolated and easily unit testable  
+3. **🏗️ Composability**: Complex queries built from simple, understandable parts
+4. **📚 Readability**: Business intent is clear from specification names
+5. **⚡ Performance**: Expressions translate to efficient SQL
+6. **🔒 Type Safety**: Compile-time checking of all query logic
+7. **🔄 Maintainability**: Business rule changes are centralized
+
+This combination of QueryBuilder's fluent API with the Specification pattern creates a powerful, maintainable approach to data access that keeps business logic organized and testable.
+
 ## Query Builder Feature Summary
 
 **Core Capabilities:**
@@ -612,6 +993,7 @@ var results = await dynamicQuery.ToListAsync(db);
 - ✅ Type-safe column references
 - ✅ Parameterized queries (SQL injection safe)
 - ✅ Multi-database dialect support (SQL Server, PostgreSQL, MySQL, SQLite)
+- ✅ **Specification Pattern Integration**
 
 **WHERE Operations:**
 - ✅ Complex boolean expressions (AND, OR, NOT)
@@ -619,11 +1001,13 @@ var results = await dynamicQuery.ToListAsync(db);
 - ✅ BETWEEN ranges
 - ✅ NULL/NOT NULL checks
 - ✅ Raw SQL conditions
+- ✅ **Specification-based filtering**
 
 **JOIN Support:**
 - ✅ INNER, LEFT, and RIGHT joins
 - ✅ Multiple joins in single query
 - ✅ Type-safe join conditions
+- ✅ **Specifications with relationships**
 
 **Aggregations:**
 - ✅ COUNT, SUM, AVG, MIN, MAX
@@ -641,6 +1025,7 @@ var results = await dynamicQuery.ToListAsync(db);
 - ✅ Multiple result types (List, Single, First, Count, Any)
 - ✅ SQL inspection before execution
 - ✅ Raw SQL integration
+- ✅ **Repository pattern support**
 
 ## Resiliency and Fault Tolerance
 
