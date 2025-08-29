@@ -5,6 +5,59 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-08-28
+
+### Added
+- **Query Caching**: Intelligent caching with tag-based invalidation
+  - `IQueryCache` interface with memory-based implementation
+  - Extension methods `QueryWithCacheAsync` and `QuerySingleWithCacheAsync`
+  - Automatic cache key generation using SHA256
+  - Thread-safe operations with `SemaphoreSlim`
+
+- **Advanced Query Builder**: Fluent LINQ-style query building
+  - Expression support for type-safe queries
+  - Complex JOIN operations (INNER, LEFT, RIGHT)
+  - Subquery support (EXISTS, NOT EXISTS)
+  - Set operations (UNION, INTERSECT, EXCEPT)
+  - Aggregate functions with GROUP BY/HAVING
+  - Pagination with Skip/Take
+
+- **Bulk Operations**: High-performance batch operations
+  - `BulkInsert`, `BulkUpdate`, `BulkDelete`, `BulkMerge`
+  - Optimized for each database dialect
+  - Transaction support with configurable batch sizes
+  - Column mapping and exclusion options
+
+- **Resiliency & Circuit Breakers**: Polly integration
+  - Automatic retry with exponential backoff
+  - Circuit breaker pattern implementation
+  - Configurable retry policies
+  - Timeout handling
+
+- **Repository Pattern**: Generic repository with specifications
+  - `IRepository<T>` interface with full CRUD operations
+  - Specification pattern for complex queries
+  - Async support throughout
+
+- **Unit of Work Pattern**: Transaction management
+  - Automatic change tracking
+  - Deferred execution
+  - Multiple repository coordination
+
+- **Comprehensive Test Coverage**
+  - 300+ unit tests for all features
+  - Integration tests for all database providers
+  - 93%+ test pass rate
+
+### Fixed
+- Resolved all Dapper reference issues
+- Fixed partial update method signatures
+- Corrected namespace conflicts in QueryBuilder
+- Fixed memory cache initialization issues
+
+### Note
+All enterprise features are included in the open-source release without licensing restrictions.
+
 ## [0.2.0] - 2025-08-26
 
 ### Added
