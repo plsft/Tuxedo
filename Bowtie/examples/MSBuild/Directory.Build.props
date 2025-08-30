@@ -1,0 +1,93 @@
+<Project>
+  <!-- Bowtie Configuration Properties -->
+  <PropertyGroup>
+    <!-- Default Bowtie settings - can be overridden in individual projects -->
+    <BowtieEnabled Condition="'$(BowtieEnabled)' == ''">true</BowtieEnabled>
+    <BowtieProvider Condition="'$(BowtieProvider)' == ''">SQLite</BowtieProvider>
+    <BowtieConnectionString Condition="'$(BowtieConnectionString)' == ''">Data Source=./app.db</BowtieConnectionString>
+    <BowtieDefaultSchema Condition="'$(BowtieDefaultSchema)' == ''"></BowtieDefaultSchema>
+    <BowtieAutoSync Condition="'$(BowtieAutoSync)' == ''">false</BowtieAutoSync>
+    <BowtieGenerateScripts Condition="'$(BowtieGenerateScripts)' == ''">true</BowtieGenerateScripts>
+    <BowtieOutputDirectory Condition="'$(BowtieOutputDirectory)' == ''">$(OutputPath)migrations</BowtieOutputDirectory>
+    <BowtieVerbose Condition="'$(BowtieVerbose)' == ''">false</BowtieVerbose>
+  </PropertyGroup>
+
+  <!-- Bowtie CLI Tool Reference -->
+  <ItemGroup Condition="'$(BowtieEnabled)' == 'true'">
+    <PackageReference Include="Bowtie.CLI" Version="0.1.0" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Bowtie MSBuild Targets -->
+  <Target Name="BowtieValidateModels" 
+          BeforeTargets="Build" 
+          Condition="'$(BowtieEnabled)' == 'true' AND '$(Configuration)' == 'Debug' AND Exists('$(OutputPath)$(AssemblyName).dll')">
+    
+    <Message Text="Validating models with Bowtie for $(BowtieProvider)..." Importance="high" />
+    
+    <Exec Command="dotnet bowtie validate --assembly &quot;$(OutputPath)$(AssemblyName).dll&quot; --provider $(BowtieProvider)" 
+          ContinueOnError="false" 
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
+  <Target Name="BowtieGenerateScripts" 
+          AfterTargets="Build" 
+          Condition="'$(BowtieEnabled)' == 'true' AND '$(BowtieGenerateScripts)' == 'true' AND Exists('$(OutputPath)$(AssemblyName).dll')">
+    
+    <Message Text="Generating DDL scripts with Bowtie..." Importance="high" />
+    
+    <!-- Create output directory -->
+    <MakeDir Directories="$(BowtieOutputDirectory)" Condition="!Exists('$(BowtieOutputDirectory)')" />
+    
+    <!-- Generate script for the configured provider -->
+    <Exec Command="dotnet bowtie generate --assembly &quot;$(OutputPath)$(AssemblyName).dll&quot; --provider $(BowtieProvider) --output &quot;$(BowtieOutputDirectory)/schema_$(BowtieProvider.ToLower()).sql&quot;" 
+          ContinueOnError="true" 
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+    
+    <!-- Optionally generate for all providers -->
+    <Exec Command="dotnet bowtie generate --assembly &quot;$(OutputPath)$(AssemblyName).dll&quot; --provider SqlServer --output &quot;$(BowtieOutputDirectory)/schema_sqlserver.sql&quot;" 
+          ContinueOnError="true" 
+          WorkingDirectory="$(MSBuildProjectDirectory)"
+          Condition="'$(BowtieGenerateAllProviders)' == 'true'" />
+    
+    <Exec Command="dotnet bowtie generate --assembly &quot;$(OutputPath)$(AssemblyName).dll&quot; --provider PostgreSQL --output &quot;$(BowtieOutputDirectory)/schema_postgresql.sql&quot;" 
+          ContinueOnError="true" 
+          WorkingDirectory="$(MSBuildProjectDirectory)"
+          Condition="'$(BowtieGenerateAllProviders)' == 'true'" />
+    
+    <Exec Command="dotnet bowtie generate --assembly &quot;$(OutputPath)$(AssemblyName).dll&quot; --provider MySQL --output &quot;$(BowtieOutputDirectory)/schema_mysql.sql&quot;" 
+          ContinueOnError="true" 
+          WorkingDirectory="$(MSBuildProjectDirectory)"
+          Condition="'$(BowtieGenerateAllProviders)' == 'true'" />
+    
+    <Exec Command="dotnet bowtie generate --assembly &quot;$(OutputPath)$(AssemblyName).dll&quot; --provider SQLite --output &quot;$(BowtieOutputDirectory)/schema_sqlite.sql&quot;" 
+          ContinueOnError="true" 
+          WorkingDirectory="$(MSBuildProjectDirectory)"
+          Condition="'$(BowtieGenerateAllProviders)' == 'true'" />
+  </Target>
+
+  <Target Name="BowtieSyncDatabase" 
+          AfterTargets="Build" 
+          Condition="'$(BowtieEnabled)' == 'true' AND '$(BowtieAutoSync)' == 'true' AND '$(Configuration)' == 'Debug' AND Exists('$(OutputPath)$(AssemblyName).dll')">
+    
+    <Message Text="Synchronizing database schema with Bowtie..." Importance="high" />
+    
+    <PropertyGroup>
+      <BowtieVerboseFlag Condition="'$(BowtieVerbose)' == 'true'">--verbose</BowtieVerboseFlag>
+      <BowtieSchemaFlag Condition="'$(BowtieDefaultSchema)' != ''">--schema &quot;$(BowtieDefaultSchema)&quot;</BowtieSchemaFlag>
+    </PropertyGroup>
+    
+    <Exec Command="dotnet bowtie sync --assembly &quot;$(OutputPath)$(AssemblyName).dll&quot; --connection-string &quot;$(BowtieConnectionString)&quot; --provider $(BowtieProvider) $(BowtieSchemaFlag) $(BowtieVerboseFlag)" 
+          ContinueOnError="false" 
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
+  <!-- Clean up generated files -->
+  <Target Name="BowtieClean" BeforeTargets="Clean" Condition="'$(BowtieEnabled)' == 'true'">
+    <ItemGroup>
+      <BowtieFilesToDelete Include="$(BowtieOutputDirectory)/**/*.sql" />
+      <BowtieFilesToDelete Include="$(OutputPath)*.sql" />
+    </ItemGroup>
+    
+    <Delete Files="@(BowtieFilesToDelete)" ContinueOnError="true" />
+  </Target>
+</Project>

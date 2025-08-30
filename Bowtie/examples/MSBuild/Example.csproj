@@ -1,0 +1,71 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    
+    <!-- Bowtie Configuration for this project -->
+    <BowtieProvider>SqlServer</BowtieProvider>
+    <BowtieConnectionString>Server=.;Database=ExampleApp;Integrated Security=true;TrustServerCertificate=true;</BowtieConnectionString>
+    <BowtieDefaultSchema>dbo</BowtieDefaultSchema>
+    <BowtieAutoSync>false</BowtieAutoSync>
+    <BowtieGenerateScripts>true</BowtieGenerateScripts>
+    <BowtieGenerateAllProviders>true</BowtieGenerateAllProviders>
+    <BowtieVerbose>true</BowtieVerbose>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Bowtie" Version="0.1.0" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
+  </ItemGroup>
+
+  <!-- Custom Bowtie targets for this project -->
+  <Target Name="BowtieCustomMigration" 
+          Condition="'$(BowtieRunCustom)' == 'true'"
+          DependsOnTargets="Build">
+    
+    <Message Text="Running custom Bowtie migration..." Importance="high" />
+    
+    <!-- Generate migration script with timestamp -->
+    <PropertyGroup>
+      <MigrationTimestamp>$([System.DateTime]::Now.ToString('yyyyMMdd_HHmmss'))</MigrationTimestamp>
+      <MigrationFile>$(BowtieOutputDirectory)/migration_$(MigrationTimestamp).sql</MigrationFile>
+    </PropertyGroup>
+    
+    <MakeDir Directories="$(BowtieOutputDirectory)" />
+    
+    <Exec Command="dotnet bowtie sync --assembly &quot;$(OutputPath)$(AssemblyName).dll&quot; --connection-string &quot;$(BowtieConnectionString)&quot; --provider $(BowtieProvider) --dry-run --output &quot;$(MigrationFile)&quot; --verbose" 
+          ContinueOnError="false" />
+    
+    <Message Text="Migration script generated: $(MigrationFile)" Importance="high" />
+  </Target>
+
+  <!-- Environment-specific targets -->
+  <Target Name="BowtieDeployDev" Condition="'$(Environment)' == 'Development'">
+    <PropertyGroup>
+      <DevConnectionString>Data Source=./dev.db</DevConnectionString>
+    </PropertyGroup>
+    
+    <Exec Command="dotnet bowtie sync --assembly &quot;$(OutputPath)$(AssemblyName).dll&quot; --connection-string &quot;$(DevConnectionString)&quot; --provider SQLite" />
+  </Target>
+
+  <Target Name="BowtieDeployStaging" Condition="'$(Environment)' == 'Staging'">
+    <PropertyGroup>
+      <StagingConnectionString>$(STAGING_CONNECTION_STRING)</StagingConnectionString>
+    </PropertyGroup>
+    
+    <Exec Command="dotnet bowtie sync --assembly &quot;$(OutputPath)$(AssemblyName).dll&quot; --connection-string &quot;$(StagingConnectionString)&quot; --provider $(BowtieProvider) --verbose" />
+  </Target>
+
+  <!-- Pre-deployment validation -->
+  <Target Name="BowtiePreDeployValidation" BeforeTargets="Publish">
+    <Message Text="Running pre-deployment model validation..." Importance="high" />
+    
+    <Exec Command="dotnet bowtie validate --assembly &quot;$(OutputPath)$(AssemblyName).dll&quot; --provider $(BowtieProvider)" 
+          ContinueOnError="false" />
+    
+    <Message Text="✅ Model validation passed" Importance="high" />
+  </Target>
+
+</Project>

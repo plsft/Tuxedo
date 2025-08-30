@@ -1,0 +1,37 @@
+# Build Outputs
+bin/
+obj/
+*.dll
+*.pdb
+*.exe
+*.deps.json
+*.runtimeconfig.json
+*.cache
+
+# NuGet
+*.nupkg
+*.nuspec
+
+# Visual Studio
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+
+# Test Results
+TestResults/
+coverage.xml
+
+# Generated SQL Scripts (demos)
+demo_schema_*.sql
+sample_schema_*.sql
+*.sql
+
+# IDE Files
+.idea/
+.vscode/
+
+# OS Files
+.DS_Store
+Thumbs.db
