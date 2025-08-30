@@ -11,6 +11,7 @@ namespace Bowtie.Extensions
         public static IServiceCollection AddBowtie(this IServiceCollection services)
         {
             services.AddTransient<ModelAnalyzer>();
+            services.AddTransient<DataLossAnalyzer>();
             services.AddTransient<DatabaseSynchronizer>();
             services.AddTransient<ScriptGenerator>();
             services.AddTransient<ModelValidator>();
@@ -29,6 +30,7 @@ namespace Bowtie.Extensions
         public static IServiceCollection AddBowtieForProvider(this IServiceCollection services, DatabaseProvider provider)
         {
             services.AddTransient<ModelAnalyzer>();
+            services.AddTransient<DataLossAnalyzer>();
             services.AddTransient<DatabaseSynchronizer>();
             services.AddTransient<ScriptGenerator>();
             services.AddTransient<ModelValidator>();

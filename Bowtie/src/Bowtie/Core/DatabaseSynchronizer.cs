@@ -11,17 +11,20 @@ namespace Bowtie.Core
     public class DatabaseSynchronizer
     {
         private readonly ModelAnalyzer _modelAnalyzer;
+        private readonly DataLossAnalyzer _dataLossAnalyzer;
         private readonly IEnumerable<IDdlGenerator> _ddlGenerators;
         private readonly IEnumerable<IDatabaseIntrospector> _introspectors;
         private readonly ILogger<DatabaseSynchronizer> _logger;
 
         public DatabaseSynchronizer(
-            ModelAnalyzer modelAnalyzer, 
+            ModelAnalyzer modelAnalyzer,
+            DataLossAnalyzer dataLossAnalyzer,
             IEnumerable<IDdlGenerator> ddlGenerators,
             IEnumerable<IDatabaseIntrospector> introspectors,
             ILogger<DatabaseSynchronizer> logger)
         {
             _modelAnalyzer = modelAnalyzer;
+            _dataLossAnalyzer = dataLossAnalyzer;
             _ddlGenerators = ddlGenerators;
             _introspectors = introspectors;
             _logger = logger;
@@ -33,7 +36,8 @@ namespace Bowtie.Core
             DatabaseProvider provider, 
             string? defaultSchema, 
             bool dryRun, 
-            string? outputFile)
+            string? outputFile,
+            bool force = false)
         {
             var generator = GetDdlGenerator(provider);
             
@@ -71,6 +75,25 @@ namespace Bowtie.Core
             
             _logger.LogInformation("Analyzing existing database schema...");
             var currentTables = await GetCurrentTablesAsync(connection, provider, defaultSchema);
+            
+            _logger.LogInformation("Analyzing potential data loss risks...");
+            var dataLossRisk = _dataLossAnalyzer.AnalyzeMigrationRisks(currentTables, targetTables);
+            _dataLossAnalyzer.LogDataLossWarnings(dataLossRisk);
+            
+            // Check for data loss risks and require confirmation
+            if (dataLossRisk.RequiresConfirmation && !force && !dryRun)
+            {
+                _logger.LogError("🚨 MIGRATION STOPPED: High risk operations detected!");
+                _logger.LogError("Use --force flag to override this safety check, or --dry-run to generate script only.");
+                _logger.LogError("STRONGLY RECOMMENDED: Backup your database before proceeding with --force.");
+                throw new InvalidOperationException("Migration aborted due to data loss risks. Use --force to override or --dry-run to generate script.");
+            }
+            
+            if (dataLossRisk.HasHighRiskOperations && force)
+            {
+                _logger.LogWarning("🚨 PROCEEDING WITH HIGH RISK MIGRATION due to --force flag!");
+                _logger.LogWarning("Ensure you have backed up your database!");
+            }
             
             _logger.LogInformation("Generating migration script...");
             var migrationSql = await GenerateMigrationSqlAsync(currentTables, targetTables, generator);

@@ -69,11 +69,12 @@ namespace Bowtie.Extensions
             string? outputFile = null)
         {
             var modelAnalyzer = serviceProvider.GetRequiredService<ModelAnalyzer>();
+            var dataLossAnalyzer = serviceProvider.GetRequiredService<DataLossAnalyzer>();
             var ddlGenerators = serviceProvider.GetServices<IDdlGenerator>();
             var logger = serviceProvider.GetRequiredService<ILogger<DatabaseSynchronizer>>();
             
             var introspectors = serviceProvider.GetServices<IDatabaseIntrospector>();
-            var synchronizer = new DatabaseSynchronizer(modelAnalyzer, ddlGenerators, introspectors, logger);
+            var synchronizer = new DatabaseSynchronizer(modelAnalyzer, dataLossAnalyzer, ddlGenerators, introspectors, logger);
             var generator = ddlGenerators.FirstOrDefault(g => g.Provider == provider);
             
             if (generator == null)

@@ -61,6 +61,10 @@ class Program
             name: "--verbose",
             description: "Enable verbose logging");
 
+        var forceOption = new Option<bool>(
+            name: "--force",
+            description: "Force migration even if data loss risks are detected (DANGEROUS)");
+
         var command = new Command("sync", "Synchronize database schema with models");
         command.AddOption(assemblyOption);
         command.AddOption(connectionStringOption);
@@ -69,9 +73,10 @@ class Program
         command.AddOption(dryRunOption);
         command.AddOption(outputOption);
         command.AddOption(verboseOption);
+        command.AddOption(forceOption);
 
         command.SetHandler(async (string assemblyPath, string connectionString, DatabaseProvider provider, 
-            string? schema, bool dryRun, string? output, bool verbose) =>
+            string? schema, bool dryRun, string? output, bool verbose, bool force) =>
         {
             var services = ConfigureServices(verbose);
             var serviceProvider = services.BuildServiceProvider();
@@ -82,7 +87,7 @@ class Program
             try
             {
                 logger.LogInformation("Starting database synchronization...");
-                await synchronizer.SynchronizeAsync(assemblyPath, connectionString, provider, schema, dryRun, output);
+                await synchronizer.SynchronizeAsync(assemblyPath, connectionString, provider, schema, dryRun, output, force);
                 logger.LogInformation("Database synchronization completed successfully.");
             }
             catch (Exception ex)
@@ -90,7 +95,7 @@ class Program
                 logger.LogError(ex, "Database synchronization failed");
                 Environment.Exit(1);
             }
-        }, assemblyOption, connectionStringOption, providerOption, schemaOption, dryRunOption, outputOption, verboseOption);
+        }, assemblyOption, connectionStringOption, providerOption, schemaOption, dryRunOption, outputOption, verboseOption, forceOption);
 
         return command;
     }
@@ -206,6 +211,7 @@ class Program
         });
 
         services.AddTransient<ModelAnalyzer>();
+        services.AddTransient<DataLossAnalyzer>();
         services.AddTransient<DatabaseSynchronizer>();
         services.AddTransient<ScriptGenerator>();
         services.AddTransient<ModelValidator>();
