@@ -39,6 +39,13 @@ namespace Tuxedo.Expressions
             return Visit(expression.Body);
         }
 
+        public string Convert<T>(Expression<Func<T, bool>> expression, int startingParameterIndex)
+        {
+            _parameters.Clear();
+            _parameterIndex = startingParameterIndex;
+            return Visit(expression.Body);
+        }
+
         public Dictionary<string, object> GetParameters()
         {
             return new Dictionary<string, object>(_parameters);

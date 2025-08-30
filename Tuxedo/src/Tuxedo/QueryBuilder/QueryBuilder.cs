@@ -175,7 +175,7 @@ namespace Tuxedo.QueryBuilder
         public IQueryBuilder<T> And(Expression<Func<T, bool>> predicate)
         {
             var sql = ExpressionToSql(predicate);
-            _whereClause.Append($" AND {sql}");
+            _whereClause.Append($" AND ({sql})");
             MergeExpressionParameters();
             return this;
         }
@@ -183,7 +183,7 @@ namespace Tuxedo.QueryBuilder
         public IQueryBuilder<T> Or(Expression<Func<T, bool>> predicate)
         {
             var sql = ExpressionToSql(predicate);
-            _whereClause.Append($" OR {sql}");
+            _whereClause.Append($" OR ({sql})");
             MergeExpressionParameters();
             return this;
         }
@@ -546,7 +546,7 @@ namespace Tuxedo.QueryBuilder
         {
             if (expression is LambdaExpression lambda)
             {
-                return _expressionConverter.Convert((Expression<Func<T, bool>>)lambda);
+                return _expressionConverter.Convert((Expression<Func<T, bool>>)lambda, _parameterCounter);
             }
             return "1=1";
         }
@@ -596,6 +596,11 @@ namespace Tuxedo.QueryBuilder
             foreach (var kvp in exprParams)
             {
                 _parameters[kvp.Key] = kvp.Value;
+                // Update parameter counter to ensure unique parameter names
+                if (kvp.Key.StartsWith("p") && int.TryParse(kvp.Key.Substring(1), out int paramNum))
+                {
+                    _parameterCounter = Math.Max(_parameterCounter, paramNum);
+                }
             }
         }
 
