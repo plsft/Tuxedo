@@ -2,8 +2,12 @@
 
 Tuxedo merges Dapper and Dapper.Contrib functionality into a single package for modern .NET. It provides high‑performance ADO.NET mapping and CRUD helpers that work with SQL Server, PostgreSQL, MySQL, and SQLite.
 
+> **🎭 NEW: Bowtie Database Migration Library**  
+> Bowtie extends Tuxedo with comprehensive database migration and schema synchronization capabilities. See the [Bowtie directory](./Bowtie/) for complete documentation.
+
 ## Features
 
+### **Tuxedo ORM Core**
 - High performance query/execute APIs (`Query`, `Execute`, async variants)
 - **Dynamic Query Builder**: Fluent LINQ-style query building with expression support
 - Contrib‑style CRUD: `Get`/`GetAll`, `Insert`, `Update`, `Delete` (+ async)
@@ -15,10 +19,21 @@ Tuxedo merges Dapper and Dapper.Contrib functionality into a single package for 
 - Works with any ADO.NET provider (SqlClient, Npgsql, MySqlConnector, Sqlite)
 - Optional DI helpers for registering a connection, including in‑memory SQLite
 
+### **🎭 Bowtie Database Migrations** 
+- **Schema Synchronization**: Automatic database table creation and updates from POCO models
+- **Multi-Database DDL**: Generate SQL for SQL Server, PostgreSQL, MySQL, SQLite
+- **Advanced Indexing**: GIN, Hash, Clustered, ColumnStore, FullText, Spatial indexes
+- **Extended Attributes**: `[Index]`, `[Unique]`, `[ForeignKey]`, `[CheckConstraint]`, `[Column]`
+- **CLI Tool**: Command-line interface for build automation (`bowtie sync`, `generate`, `validate`)
+- **ASP.NET Core Integration**: Seamless startup integration with `AddBowtie()`
+- **Database Introspection**: Read existing schema for intelligent migrations
+- **MSBuild Integration**: Automated build targets and CI/CD pipeline support
+
 ## Installation
 
-- Library: `dotnet add package Tuxedo`
-- Providers as needed: `Microsoft.Data.SqlClient`, `Npgsql`, `MySqlConnector`, `Microsoft.Data.Sqlite`
+- **Tuxedo ORM**: `dotnet add package Tuxedo`
+- **Bowtie Migrations**: `dotnet add package Bowtie` (see [Bowtie documentation](./Bowtie/))
+- **Providers as needed**: `Microsoft.Data.SqlClient`, `Npgsql`, `MySqlConnector`, `Microsoft.Data.Sqlite`
 
 ## Quick Start
 
@@ -2338,6 +2353,74 @@ services.AddTuxedoSqliteInMemory("TestDb");
 - Async CRUD helpers are available as `GetAsync`/`SelectAsync`, `GetAllAsync`, `InsertAsync`, `UpdateAsync`, `DeleteAsync`, `DeleteAllAsync`.
 - Partial update functionality is built into `Update` and `UpdateAsync` methods with optional property filtering.
 
+## 🎭 Bowtie Database Migrations
+
+**Bowtie** is a companion library that extends Tuxedo with comprehensive database migration and schema synchronization capabilities.
+
+### Key Features
+- **Multi-Database DDL Generation**: SQL Server, PostgreSQL, MySQL, SQLite
+- **Advanced Indexing**: GIN (PostgreSQL), Clustered (SQL Server), FullText, Spatial
+- **Extended Attributes**: `[Index]`, `[Unique]`, `[ForeignKey]`, `[CheckConstraint]`, `[Column]`
+- **CLI Tool**: `bowtie sync`, `bowtie generate`, `bowtie validate`
+- **ASP.NET Core Integration**: Automatic schema synchronization
+
+### Quick Start with Bowtie
+
+```csharp
+// 1. Install Bowtie
+// dotnet add package Bowtie
+
+// 2. Define models with extended attributes
+[Table("Products")]
+public class Product
+{
+    [Key]
+    public int Id { get; set; }
+
+    [Column(MaxLength = 200)]
+    [Index("IX_Products_Name")]
+    public string Name { get; set; } = string.Empty;
+
+    [Index("IX_Products_Content_GIN", IndexType = IndexType.GIN)] // PostgreSQL
+    [Column(TypeName = "jsonb")]
+    public string Metadata { get; set; } = "{}";
+
+    [ForeignKey("Categories", OnDelete = ReferentialAction.Cascade)]
+    public int CategoryId { get; set; }
+
+    [CheckConstraint("Price > 0")]
+    [Column(Precision = 18, Scale = 2)]
+    public decimal Price { get; set; }
+}
+
+// 3. Configure in ASP.NET Core
+builder.Services.AddBowtie();
+
+// 4. Auto-synchronize database (development)
+if (app.Environment.IsDevelopment())
+{
+    await app.Services.SynchronizeDatabaseAsync(
+        connectionString: "Data Source=app.db",
+        provider: DatabaseProvider.SQLite
+    );
+}
+```
+
+### CLI Usage
+
+```bash
+# Generate DDL scripts
+bowtie generate --assembly MyApp.dll --provider SqlServer --output schema.sql
+
+# Synchronize database
+bowtie sync --assembly MyApp.dll --connection-string "..." --provider PostgreSQL
+
+# Validate models
+bowtie validate --assembly MyApp.dll --provider MySQL
+```
+
+📖 **Complete Documentation**: See [Bowtie/README.md](./Bowtie/README.md) for full documentation, examples, and integration guides.
+
 ## Status
 
-This README documents the APIs present in the codebase today. The library includes comprehensive query building, CRUD operations, partial updates, dependency injection helpers, and multi-database support.
+This README documents the APIs present in the codebase today. The library includes comprehensive query building, CRUD operations, partial updates, dependency injection helpers, multi-database support, and **database migration capabilities through Bowtie**.
