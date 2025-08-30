@@ -3,11 +3,11 @@ using Bowtie.Attributes;
 using Bowtie.Core;
 using Bowtie.DDL;
 using Bowtie.Models;
-using Bowtie.NUnit.Tests.TestModels;
+using Bowtie.Tests.TestModels;
 using FluentAssertions;
 using NUnit.Framework;
 
-namespace Bowtie.NUnit.Tests.DDL;
+namespace Bowtie.Tests.DDL;
 
 [TestFixture]
 public class SqliteDdlGeneratorTests

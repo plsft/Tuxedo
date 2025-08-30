@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 
-namespace Bowtie.NUnit.Tests.Analysis;
+namespace Bowtie.Tests.Analysis;
 
 [TestFixture]
 public class DataLossAnalyzerTests

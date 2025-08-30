@@ -1,7 +1,7 @@
 using Tuxedo.Contrib;
 using Bowtie.Attributes;
 
-namespace Bowtie.NUnit.Tests.TestModels;
+namespace Bowtie.Tests.TestModels;
 
 [Table("Users")]
 public class User

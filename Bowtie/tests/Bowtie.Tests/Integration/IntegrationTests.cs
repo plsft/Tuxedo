@@ -6,7 +6,7 @@ using Bowtie.DDL;
 using Bowtie.Extensions;
 using Bowtie.Introspection;
 using Bowtie.Models;
-using Bowtie.NUnit.Tests.TestModels;
+using Bowtie.Tests.TestModels;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Tuxedo;
 
-namespace Bowtie.NUnit.Tests.Integration;
+namespace Bowtie.Tests.Integration;
 
 [TestFixture]
 public class IntegrationTests

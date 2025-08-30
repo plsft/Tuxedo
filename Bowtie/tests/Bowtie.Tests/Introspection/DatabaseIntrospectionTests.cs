@@ -9,7 +9,7 @@ using Moq;
 using NUnit.Framework;
 using Tuxedo;
 
-namespace Bowtie.NUnit.Tests.Introspection;
+namespace Bowtie.Tests.Introspection;
 
 [TestFixture]
 public class DatabaseIntrospectionTests
@@ -217,7 +217,7 @@ public class DatabaseIntrospectionTests
         var analyzer = new Bowtie.Analysis.ModelAnalyzer();
         var generator = new Bowtie.DDL.SqliteDdlGenerator();
         
-        var tables = analyzer.AnalyzeTypes(new[] { typeof(Bowtie.NUnit.Tests.TestModels.User) });
+        var tables = analyzer.AnalyzeTypes(new[] { typeof(Bowtie.Tests.TestModels.User) });
         var createScript = generator.GenerateCreateTable(tables[0]);
 
         // Act - Execute Bowtie-generated DDL

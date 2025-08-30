@@ -4,7 +4,7 @@ using FluentAssertions;
 using NUnit.Framework;
 using Tuxedo.Contrib;
 
-namespace Bowtie.NUnit.Tests.Attributes;
+namespace Bowtie.Tests.Attributes;
 
 [TestFixture]
 public class AttributeTests

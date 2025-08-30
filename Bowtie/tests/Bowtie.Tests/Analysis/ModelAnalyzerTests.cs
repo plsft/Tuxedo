@@ -3,12 +3,12 @@ using Bowtie.Analysis;
 using Bowtie.Attributes;
 using Bowtie.Core;
 using Bowtie.Models;
-using Bowtie.NUnit.Tests.TestModels;
+using Bowtie.Tests.TestModels;
 using FluentAssertions;
 using NUnit.Framework;
 using Tuxedo.Contrib;
 
-namespace Bowtie.NUnit.Tests.Analysis;
+namespace Bowtie.Tests.Analysis;
 
 [TestFixture]
 public class ModelAnalyzerTests
