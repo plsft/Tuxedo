@@ -31,7 +31,7 @@ namespace Bowtie.Analysis
         {
             var tableModels = new List<TableModel>();
             
-            foreach (var type in types.Where(t => t.IsClass && !t.IsAbstract))
+            foreach (var type in types.Where(t => t.IsClass && !t.IsAbstract && HasTableAttribute(t)))
             {
                 var tableModel = AnalyzeType(type, defaultSchema);
                 if (tableModel != null)
